@@ -18,7 +18,7 @@
 | 3 | Layout, tema da marca e PWA | ✅ concluída | `a0a4d59` |
 | 4 | Configurações, impressoras, filamentos e insumos | ✅ concluída | `95a3483` |
 | 5 | Calculadora de custo e importação `.3mf` | ✅ concluída | `b8c4039`, ajustes em `627839a` |
-| 6 | Produtos e variações | próxima | |
+| 6 | Produtos e variações | em andamento: migração e `lib/product-pricing.ts` prontos; faltam telas e calculadora | |
 | 7 | Clientes, orçamentos, página pública e PDF | | |
 | 8 | Pedidos (kanban) e baixa de filamento | | |
 | 9 | Financeiro e dashboard | | |
@@ -86,6 +86,24 @@ Existe um usuário só para testes locais, com `E2E_EMAIL` e `E2E_PASSWORD` no `
 - Nunca gravar a senha em arquivo versionado nem mostrá-la na saída: o script lê o `.env.local` na hora.
 - O Playwright fica fora do projeto (`playwright-core` numa pasta temporária, usando o Edge do Windows),
   então o `package.json` não muda.
+
+### Produtos (Fase 6)
+- **Margem sempre recalculada na hora** (`lib/product-pricing.ts`) com os preços dos carretéis e as taxas
+  atuais. O `unit_cost` guardado na ficha é só cache e não entra na conta.
+- **Preço vazio** num canal = "Sem preço", com o sugerido ao lado (margem padrão). Não conta como margem ruim.
+- **Margem ruim** = canal com preço em prejuízo ou abaixo da margem mínima das Configurações.
+- **Canal com taxas em branco**: selo "Taxas não configuradas" no lugar de "ok", contado no aviso do topo.
+  Margem ruim tem prioridade sobre esse selo.
+- **Ficha compartilhada**: várias variações podem usar a mesma ficha. Na calculadora, ao abrir ou salvar
+  uma ficha em uso, mostrar "Usada em N variações: [nomes]".
+- **Carretel que acabou ou foi excluído**: a ficha passa a usar a média atual do material e mostra aviso
+  (vale também na calculadora, porque a regra está em `resolveFilament`, `lib/cost-sheet.ts`).
+  A exclusão é detectada pela coluna `cost_sheet_filaments.spool_removed`, marcada por trigger quando o
+  banco zera o `filament_id`; salvar a ficha de novo limpa a marca.
+- **SKU único no catálogo inteiro** do usuário (produtos e variações juntos), sem diferenciar maiúsculas
+  nem espaços nas pontas. Garantido por trigger (`check_catalog_sku`); SKU vazio vira null.
+- **`save_product`** grava produto, variações e preços numa transação. Variações são atualizadas no lugar
+  (orçamentos e pedidos apontam para elas); só as removidas da lista são apagadas.
 
 ## Pendências
 

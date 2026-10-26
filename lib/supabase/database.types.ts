@@ -25,6 +25,7 @@ export type Database = {
           material: string
           owner_id: string
           sort_order: number
+          spool_removed: boolean
           updated_at: string
         }
         Insert: {
@@ -37,6 +38,7 @@ export type Database = {
           material: string
           owner_id?: string
           sort_order?: number
+          spool_removed?: boolean
           updated_at?: string
         }
         Update: {
@@ -49,6 +51,7 @@ export type Database = {
           material?: string
           owner_id?: string
           sort_order?: number
+          spool_removed?: boolean
           updated_at?: string
         }
         Relationships: [
@@ -1175,6 +1178,7 @@ export type Database = {
         Args: { p_sheet: Json; p_unit_cost: number }
         Returns: string
       }
+      save_product: { Args: { p_product: Json }; Returns: string }
     }
     Enums: {
       [_ in never]: never

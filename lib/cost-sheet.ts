@@ -1,4 +1,4 @@
-import type { CostInput, PrinterCosts, RoundingRule } from "@/lib/pricing";
+import type { ChannelFees, CostInput, PrinterCosts, RoundingRule } from "@/lib/pricing";
 
 /**
  * Ficha de custo: o que o usuário preenche na calculadora (e o que fica salvo em
@@ -13,6 +13,8 @@ export type SheetFilament = {
   colorHex: string | null;
   /** Gramas por mesa. */
   grams: number;
+  /** O carretel escolhido foi excluído depois (o banco zerou filamentId). */
+  spoolRemoved?: boolean;
 };
 
 export type SheetExtra = {
@@ -93,27 +95,52 @@ export function printerCosts(p: ContextPrinter | undefined): PrinterCosts | null
   };
 }
 
-/** R$/g da linha: do carretel escolhido ou a média do material. */
-export function resolveCostPerGram(row: SheetFilament, ctx: PricingContext): number | null {
-  if (row.filamentId) {
-    const spool = ctx.spools.find((s) => s.id === row.filamentId);
-    if (spool) return spool.cost_per_gram;
-  }
-  return ctx.materialAverages[row.material] ?? null;
+export function channelFees(c: ContextChannel): ChannelFees {
+  return { commissionPct: c.commission_pct, extraPct: c.extra_pct, fixedFee: c.fixed_fee };
 }
 
-export function filamentLabel(row: SheetFilament, ctx: PricingContext): string {
-  const spool = row.filamentId ? ctx.spools.find((s) => s.id === row.filamentId) : undefined;
-  return spool ? `${spool.material} ${spool.color_name}` : `${row.material} (média)`;
+export type ResolvedFilament = {
+  costPerGram: number | null;
+  label: string;
+  /** Preenchido quando o carretel escolhido acabou ou foi excluído e a linha caiu na média. */
+  warning: string | null;
+};
+
+/**
+ * R$/g da linha: do carretel escolhido ou a média do material.
+ * Carretel que acabou ou foi excluído não define mais o preço: vale a média atual do material.
+ */
+export function resolveFilament(row: SheetFilament, ctx: PricingContext): ResolvedFilament {
+  const average = ctx.materialAverages[row.material] ?? null;
+  const averageLabel = `${row.material} (média)`;
+  if (row.filamentId) {
+    const spool = ctx.spools.find((s) => s.id === row.filamentId);
+    const name = spool ? `${spool.material} ${spool.color_name}` : null;
+    if (spool && name && spool.status !== "empty") return { costPerGram: spool.cost_per_gram, label: name, warning: null };
+    return {
+      costPerGram: average,
+      label: averageLabel,
+      warning: spool
+        ? `O carretel ${name} acabou: usando a média do ${row.material}.`
+        : `O carretel escolhido não existe mais: usando a média do ${row.material}.`,
+    };
+  }
+  if (row.spoolRemoved) {
+    return {
+      costPerGram: average,
+      label: averageLabel,
+      warning: `O carretel escolhido foi excluído: usando a média do ${row.material}.`,
+    };
+  }
+  return { costPerGram: average, label: averageLabel, warning: null };
 }
 
 export function toCostInput(sheet: SheetData, ctx: PricingContext): CostInput {
   return {
-    filaments: sheet.filaments.map((row) => ({
-      grams: row.grams,
-      costPerGram: resolveCostPerGram(row, ctx),
-      label: filamentLabel(row, ctx),
-    })),
+    filaments: sheet.filaments.map((row) => {
+      const { costPerGram, label } = resolveFilament(row, ctx);
+      return { grams: row.grams, costPerGram, label };
+    }),
     purgeG: sheet.purgeG,
     printMinutes: sheet.printMinutes,
     piecesPerPlate: sheet.piecesPerPlate,

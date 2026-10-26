@@ -7,11 +7,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { ContextChannel, PricingContext } from "@/lib/cost-sheet";
+import { type PricingContext, channelFees as fees } from "@/lib/cost-sheet";
 import { formatCurrency } from "@/lib/format";
 import { parseDecimal } from "@/lib/numbers";
 import {
-  type ChannelFees,
   type ProfitResult,
   isChannelConfigured,
   profitAtPrice,
@@ -19,11 +18,6 @@ import {
 } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 
-const fees = (c: ContextChannel): ChannelFees => ({
-  commissionPct: c.commission_pct,
-  extraPct: c.extra_pct,
-  fixedFee: c.fixed_fee,
-});
 
 const pctLabel = (v: number) => `${v.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
 
