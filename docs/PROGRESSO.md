@@ -3,8 +3,11 @@
 > Se o histórico da conversa sumir, leia `docs/` antes de qualquer coisa:
 > este arquivo e o `docs/PROMPT_VINDRA_3D.md` (o prompt mestre com as fases e as regras de trabalho).
 > Atualize este arquivo no fim de cada fase.
+>
+> **Quando o prompt e este arquivo divergirem, vale este arquivo.** O prompt é o original;
+> as mudanças combinadas depois estão em "Onde o prompt ficou desatualizado" e em "Decisões".
 
-Última atualização: 26/10/2026 (ajustes da Fase 5).
+Última atualização: 26/10/2026 (ajustes da Fase 5 e prompt versionado).
 
 ## Fases
 
@@ -23,6 +26,17 @@
 
 Antes de cada commit de fase: `npm run lint`, `npm run typecheck`, `npm test` e `npm run build` passando.
 O push vem depois que o Enzo confere no navegador.
+
+## Onde o prompt ficou desatualizado
+
+| Assunto | O prompt diz | O que vale |
+|---|---|---|
+| Pasta do projeto | `C:\Projetos\vindra-3d-studio` | `c:\dev\vindra` |
+| Repositório | criar com `gh repo create` | criado pelo Enzo; `gh` não é usado, o push vai pelo git já autenticado no VS Code |
+| Checagens antes do commit | lint, typecheck e build | também `npm test`; push só depois da conferência do Enzo |
+| Mão de obra | `(minPreparo + minPós) / 60 × valorHora` no total | preparo por lote, pós por peça (ver "Decisões") |
+| Página pública do orçamento | Server Component com a service role key **ou** função `security definer` | funções `security definer` `get_public_quote` e `approve_public_quote` (liberadas para `anon`), que devolvem só os campos públicos pelo token |
+| Purga na importação `.3mf` | não fala | fica em 0 e a interface não afirma que o fatiador já soma a purga (ver "Decisões") |
 
 ## Decisões
 
@@ -82,4 +96,3 @@ Existe um usuário só para testes locais, com `E2E_EMAIL` e `E2E_PASSWORD` no `
   era de uma A1 mini. Confirmar qual impressora é usada (ou se são as duas) e ajustar o cadastro.
 - [ ] Revisar a paleta de canais nos gráficos: azul e violeta lado a lado reprovam no validador de
   daltonismo (Fase 9).
-- [ ] Colocar o `docs/PROMPT_VINDRA_3D.md` no repositório (o Enzo vai adicionar o arquivo).
