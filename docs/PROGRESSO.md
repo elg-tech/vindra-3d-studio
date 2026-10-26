@@ -36,6 +36,7 @@ O push vem depois que o Enzo confere no navegador.
 | Checagens antes do commit | lint, typecheck e build | também `npm test`; push só depois da conferência do Enzo |
 | Mão de obra | `(minPreparo + minPós) / 60 × valorHora` no total | preparo por lote, pós por peça (ver "Decisões") |
 | Página pública do orçamento | Server Component com a service role key **ou** função `security definer` | funções `security definer` `get_public_quote` e `approve_public_quote` (liberadas para `anon`), que devolvem só os campos públicos pelo token |
+| `SUPABASE_SERVICE_ROLE_KEY` | colar na Vercel no deploy | não é usada nem exigida (`lib/env.ts` só valida as `NEXT_PUBLIC_*`); fica comentada no `.env.example` e só entra, inclusive na Vercel, se uma fase futura precisar |
 | Purga na importação `.3mf` | não fala | fica em 0 e a interface não afirma que o fatiador já soma a purga (ver "Decisões") |
 
 ## Decisões
