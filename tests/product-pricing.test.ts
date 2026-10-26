@@ -206,6 +206,17 @@ describe("summarizeProduct", () => {
     expect(summarizeProduct([boa, ruim])).toMatchObject({ worst: "below_min", badMargin: true });
   });
 
+  it("variação sem ficha conta mesmo quando outra variação tem situação pior", () => {
+    const prejuizo = priceVariant(sheet(), { shopee: 15 }, ctx);
+    const semFicha = priceVariant(null, {}, ctx);
+    const s = summarizeProduct([prejuizo, semFicha]);
+    expect(s.worst).toBe("loss");
+    expect(s.missingCost).toBe(true);
+    expect(summarizeProduct([prejuizo]).missingCost).toBe(false);
+    const semCusto = priceVariant(sheet({ filamentId: null, material: "TPU" }), {}, ctx);
+    expect(summarizeProduct([prejuizo, semCusto]).missingCost).toBe(true);
+  });
+
   it("sem nenhum preço: menor margem null", () => {
     expect(summarizeProduct([priceVariant(sheet(), {}, ctx)]).lowestMarginPct).toBeNull();
     expect(summarizeProduct([])).toMatchObject({ worst: "ok", badMargin: false, lowestMarginPct: null });

@@ -5,6 +5,7 @@ import { notFound, redirect } from "next/navigation";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { type CalcFormValues, sheetToForm } from "@/lib/calculator-form";
+import { loadSheetUsage } from "@/lib/catalog";
 import { sheetFromRow } from "@/lib/cost-sheet";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { loadPricingContext } from "@/lib/pricing-context";
@@ -24,7 +25,7 @@ export default async function CalculadoraPage({
   if (!userId) redirect("/login");
 
   const supabase = await createClient();
-  const [ctx, supplies, sheets] = await Promise.all([
+  const [ctx, supplies, sheets, usage, products] = await Promise.all([
     loadPricingContext(supabase),
     supabase.from("supplies").select("id, name, unit, unit_cost, is_packaging").order("name"),
     supabase
@@ -32,6 +33,8 @@ export default async function CalculadoraPage({
       .select("id, name, unit_cost, quantity, updated_at")
       .order("updated_at", { ascending: false })
       .limit(30),
+    loadSheetUsage(supabase),
+    supabase.from("products").select("id, name").order("name"),
   ]);
 
   let initial: CalcFormValues | null = null;
@@ -60,7 +63,15 @@ export default async function CalculadoraPage({
       />
 
       {/* key: trocar de ficha recria o formulário com os valores dela */}
-      <Calculator key={ficha ?? "nova"} ctx={ctx} supplies={supplies.data ?? []} initial={initial} userId={userId} />
+      <Calculator
+        key={ficha ?? "nova"}
+        ctx={ctx}
+        supplies={supplies.data ?? []}
+        initial={initial}
+        userId={userId}
+        usage={(ficha && usage.get(ficha)) || []}
+        products={products.data ?? []}
+      />
 
       <Card>
         <CardHeader>
@@ -82,7 +93,10 @@ export default async function CalculadoraPage({
                     aria-current={s.id === ficha ? "page" : undefined}
                   >
                     <span className="block truncate font-medium">{s.name}</span>
-                    <span className="text-xs text-muted-foreground">Atualizada em {formatDate(s.updated_at)}</span>
+                    <span className="text-xs text-muted-foreground">
+                      Atualizada em {formatDate(s.updated_at)}
+                      {usage.has(s.id) && ` · em ${usage.get(s.id)?.length} variação(ões)`}
+                    </span>
                   </Link>
                   <span className="text-right text-sm tabular-nums">
                     {s.unit_cost === null ? "—" : formatCurrency(s.unit_cost)}

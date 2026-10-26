@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, FilePlus2, Plus, Save, Trash2 } from "lucide-react";
+import { AlertTriangle, FilePlus2, Link2, Plus, Save, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
@@ -18,11 +18,13 @@ import { type PricingContext, evaluateSheet, matchSpool } from "@/lib/cost-sheet
 import { MATERIALS } from "@/lib/filaments";
 import { formatCurrency, formatGrams, formatNumber, formatUnitCost } from "@/lib/format";
 import { parseDecimal } from "@/lib/numbers";
+import { type SheetUsage, usageLabel } from "@/lib/products";
 import { createClient } from "@/lib/supabase/client";
 import { saveCostSheet } from "./actions";
 import { ChannelPrices } from "./channel-prices";
 import { CostBreakdown } from "./cost-breakdown";
 import { Import3mf } from "./import-3mf";
+import { type ProductOption, SaveAsProduct } from "./save-as-product";
 
 export type SupplyOption = { id: string; name: string; unit: string; unit_cost: number; is_packaging: boolean };
 
@@ -33,11 +35,16 @@ export function Calculator({
   supplies,
   initial,
   userId,
+  usage,
+  products,
 }: {
   ctx: PricingContext;
   supplies: SupplyOption[];
   initial: CalcFormValues | null;
   userId: string;
+  /** Variações que usam a ficha aberta: salvar muda o custo delas. */
+  usage: SheetUsage[];
+  products: ProductOption[];
 }) {
   const router = useRouter();
   const [isSaving, startSaving] = useTransition();
@@ -534,6 +541,17 @@ export function Calculator({
             {pendingFile && (
               <p className="text-xs text-muted-foreground">O arquivo {pendingFile.name} será guardado junto com a ficha.</p>
             )}
+            {values.id && usage.length > 0 && (
+              <p role="note" className="flex gap-2 rounded-lg border border-warning/40 bg-warning/10 p-3 text-xs">
+                <Link2 className="mt-0.5 size-3.5 shrink-0 text-warning" aria-hidden />
+                <span>
+                  <strong className="font-medium">
+                    Usada em {usage.length} {usage.length === 1 ? "variação" : "variações"}:
+                  </strong>{" "}
+                  {usageLabel(usage)}. Salvar muda o custo {usage.length === 1 ? "dela" : "de todas"}.
+                </span>
+              </p>
+            )}
             <div className="flex flex-wrap gap-2">
               <Button type="submit" disabled={isSaving} className="flex-1">
                 <Save aria-hidden /> {values.id ? "Atualizar ficha" : "Salvar ficha"}
@@ -542,6 +560,9 @@ export function Calculator({
                 <FilePlus2 aria-hidden /> Nova
               </Button>
             </div>
+            {values.id && (
+              <SaveAsProduct sheetId={values.id} sheetName={values.name} products={products} />
+            )}
           </CardContent>
         </Card>
       </div>

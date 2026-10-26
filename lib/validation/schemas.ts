@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { FILAMENT_STATUS, MATERIALS } from "@/lib/filaments";
+import { MODEL_SOURCES } from "@/lib/products";
 import {
   decimal,
   optionalDecimal,
@@ -187,3 +188,81 @@ export const costSheetSchema = z.object({
 });
 
 export type CostSheetInput = z.input<typeof costSheetSchema>;
+
+// ---------------------------------------------------------------
+// Produtos e variações (campos de texto, como no formulário)
+// ---------------------------------------------------------------
+const sku = () => optionalText(40);
+const optionalUuid = () =>
+  z
+    .string()
+    .trim()
+    .transform((v) => (v === "" ? null : v))
+    .pipe(z.uuid("Registro inválido.").nullable());
+
+export const productSchema = z
+  .object({
+    id: z.uuid().optional(),
+    name: requiredText(120),
+    sku: sku(),
+    description: optionalText(2000),
+    imagePath: optionalText(300),
+    modelSource: z
+      .enum([...MODEL_SOURCES, ""])
+      .transform((v) => (v === "" ? null : v)),
+    modelLicense: optionalText(120),
+    modelUrl: z
+      .string()
+      .trim()
+      .max(500, "Máximo 500 caracteres.")
+      .refine((v) => v === "" || /^https?:\/\/\S+$/i.test(v), "Use um link começando com http:// ou https://.")
+      .transform((v) => (v === "" ? null : v)),
+    active: z.boolean(),
+    variants: z
+      .array(
+        z.object({
+          id: z.uuid().optional(),
+          name: requiredText(80),
+          sku: sku(),
+          costSheetId: optionalUuid(),
+          active: z.boolean(),
+          prices: z.array(z.object({ channelId: z.uuid(), price: optionalDecimal({ min: 0, max: 100_000 }) })),
+        }),
+      )
+      .min(1, "Adicione pelo menos uma variação.")
+      .max(50, "No máximo 50 variações."),
+  })
+  .superRefine((p, ctx) => {
+    // aviso imediato no formulário; o banco garante o SKU único no catálogo inteiro
+    const seen = new Map<string, string>();
+    const check = (value: string | null, path: (string | number)[]) => {
+      if (!value) return;
+      const key = value.toLowerCase();
+      if (seen.has(key)) ctx.addIssue({ code: "custom", path, message: `SKU repetido (${seen.get(key)}).` });
+      else seen.set(key, path.length === 1 ? "produto" : `variação ${Number(path[1]) + 1}`);
+    };
+    check(p.sku, ["sku"]);
+    p.variants.forEach((v, i) => check(v.sku, ["variants", i, "sku"]));
+  });
+
+export type ProductInput = z.input<typeof productSchema>;
+
+/** "Salvar como produto" na calculadora: produto novo ou variação de um existente. */
+export const sheetToProductSchema = z.discriminatedUnion("mode", [
+  z.object({
+    mode: z.literal("new"),
+    costSheetId: z.uuid(),
+    productName: requiredText(120),
+    productSku: sku(),
+    variantName: requiredText(80),
+  }),
+  z.object({
+    mode: z.literal("existing"),
+    costSheetId: z.uuid(),
+    productId: z.uuid("Escolha um produto."),
+    variantName: requiredText(80),
+    variantSku: sku(),
+  }),
+]);
+
+export type SheetToProductInput = z.input<typeof sheetToProductSchema>;

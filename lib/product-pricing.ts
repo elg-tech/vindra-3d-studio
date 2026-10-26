@@ -110,6 +110,8 @@ export type ProductSummary = {
   badMargin: boolean;
   /** Algum canal com preço calculado sobre taxas em branco. */
   feesNotConfigured: boolean;
+  /** Alguma variação sem ficha ou sem custo de filamento (mesmo que outra tenha situação pior). */
+  missingCost: boolean;
   /** Menor margem entre os canais com preço; null se nenhum tem preço. */
   lowestMarginPct: number | null;
   warnings: string[];
@@ -123,6 +125,7 @@ export function summarizeProduct(variants: VariantPricing[]): ProductSummary {
     worst: worstStatus(variants.map((v) => v.worst)),
     badMargin: channels.some((c) => c.status === "loss" || c.status === "below_min"),
     feesNotConfigured: channels.some((c) => c.status === "fees_not_configured"),
+    missingCost: variants.some((v) => v.unitCost === null),
     lowestMarginPct: margins.length > 0 ? Math.min(...margins) : null,
     warnings: [...new Set(variants.flatMap((v) => v.warnings))],
   };

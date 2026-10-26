@@ -18,7 +18,7 @@
 | 3 | Layout, tema da marca e PWA | ✅ concluída | `a0a4d59` |
 | 4 | Configurações, impressoras, filamentos e insumos | ✅ concluída | `95a3483` |
 | 5 | Calculadora de custo e importação `.3mf` | ✅ concluída | `b8c4039`, ajustes em `627839a` |
-| 6 | Produtos e variações | em andamento: migração e `lib/product-pricing.ts` prontos; faltam telas e calculadora | |
+| 6 | Produtos e variações | pronta, aguardando conferência do Enzo para o push | `6dd5665`, `1317450` e o commit das telas |
 | 7 | Clientes, orçamentos, página pública e PDF | | |
 | 8 | Pedidos (kanban) e baixa de filamento | | |
 | 9 | Financeiro e dashboard | | |
@@ -109,6 +109,14 @@ Existe um usuário só para testes locais, com `E2E_EMAIL` e `E2E_PASSWORD` no `
      quanto "sem ficha"; na calculadora o preço fica "—". A ficha pode ser salva, com `unit_cost` vazio.
 - **SKU único no catálogo inteiro** do usuário (produtos e variações juntos), sem diferenciar maiúsculas
   nem espaços nas pontas. Garantido por trigger (`check_catalog_sku`); SKU vazio vira null.
+- **Aviso do topo em `/produtos`** conta produtos ativos com margem ruim, com preço em canal sem taxas e com
+  alguma variação sem ficha ou sem custo de filamento (`missingCost`, mesmo que outra variação esteja pior).
+  Variações inativas ficam fora da conta.
+- **Foto do produto**: reduzida no navegador para WebP de até 1600 px e enviada para
+  `product-images/<usuário>/produtos/`. A foto antiga sai ao salvar; uma trocada antes de salvar sai na hora.
+  Exibida com `next/image` (host do Supabase liberado no `next.config.ts`).
+- **"Salvar como produto"** na calculadora usa a versão salva da ficha: cria produto novo (primeira variação)
+  ou acrescenta variação a um produto existente. Preços se definem na página do produto.
 - **`save_product`** grava produto, variações e preços numa transação. Variações são atualizadas no lugar
   (orçamentos e pedidos apontam para elas); só as removidas da lista são apagadas.
 
