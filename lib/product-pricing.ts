@@ -1,13 +1,5 @@
-import { type PricingContext, type SheetData, channelFees, resolveFilament, toCostInput } from "@/lib/cost-sheet";
-import {
-  PricingInputError,
-  type ProfitResult,
-  type SuggestedPrice,
-  calculateCost,
-  isChannelConfigured,
-  profitAtPrice,
-  suggestPrice,
-} from "@/lib/pricing";
+import { type PricingContext, type SheetData, channelFees, evaluateSheet } from "@/lib/cost-sheet";
+import { type ProfitResult, type SuggestedPrice, isChannelConfigured, profitAtPrice, suggestPrice } from "@/lib/pricing";
 
 /**
  * Lucro de cada variação em cada canal, recalculado com os preços e taxas ATUAIS
@@ -18,16 +10,25 @@ import {
 /**
  * Situação de um canal, da mais grave para a mais tranquila.
  * - no_sheet: variação sem ficha de custo (ou ficha inválida): não há como calcular.
+ * - no_filament_cost: a ficha usa um material que nunca foi comprado. Tão grave quanto no_sheet.
  * - no_price: sem preço naquele canal. Não conta como margem ruim.
  * - loss / below_min: prejuízo ou margem abaixo do mínimo das Configurações.
  * - fees_not_configured: lucro calculado com taxas em branco; aparece no lugar de "ok".
  */
-export type ChannelStatus = "no_sheet" | "loss" | "below_min" | "fees_not_configured" | "no_price" | "ok";
+export type ChannelStatus =
+  | "no_sheet"
+  | "no_filament_cost"
+  | "loss"
+  | "below_min"
+  | "fees_not_configured"
+  | "no_price"
+  | "ok";
 
 const SEVERITY: Record<ChannelStatus, number> = {
   loss: 5,
   below_min: 4,
   no_sheet: 3,
+  no_filament_cost: 3,
   fees_not_configured: 2,
   no_price: 1,
   ok: 0,
@@ -38,15 +39,15 @@ export type ChannelPricing = {
   status: ChannelStatus;
   feesConfigured: boolean;
   price: number | null;
-  /** Lucro no preço atual; null sem preço ou sem ficha. */
+  /** Lucro no preço atual; null sem preço ou sem custo. */
   profit: ProfitResult | null;
-  /** Preço sugerido com a margem padrão; null sem ficha. */
+  /** Preço sugerido com a margem padrão; null sem custo. */
   suggested: SuggestedPrice | null;
 };
 
 export type VariantPricing = {
   unitCost: number | null;
-  /** Carretel que acabou ou foi excluído, ficha inválida. */
+  /** Carretel que acabou ou foi excluído, material sem estoque, ficha inválida, sem custo de filamento. */
   warnings: string[];
   channels: ChannelPricing[];
   worst: ChannelStatus;
@@ -59,18 +60,16 @@ export function priceVariant(sheet: SheetData | null, prices: VariantPrices, ctx
   const { tax_pct, min_margin_pct, default_margin_pct, rounding_rule } = ctx.settings;
   const warnings: string[] = [];
   let unitCost: number | null = null;
+  let blocked: ChannelStatus = "no_sheet";
 
   if (sheet) {
-    for (const row of sheet.filaments) {
-      const { warning } = resolveFilament(row, ctx);
-      if (warning) warnings.push(warning);
-    }
-    try {
-      unitCost = calculateCost(toCostInput(sheet, ctx)).unit.total;
-    } catch (e) {
-      if (!(e instanceof PricingInputError)) throw e;
-      warnings.push(`Ficha inválida: ${e.message}`);
-    }
+    const evaluation = evaluateSheet(sheet, ctx);
+    warnings.push(...evaluation.warnings);
+    if (evaluation.ok) unitCost = evaluation.result.unit.total;
+    else if (evaluation.reason === "no_filament_cost") {
+      blocked = "no_filament_cost";
+      warnings.push(evaluation.message);
+    } else warnings.push(`Ficha inválida: ${evaluation.message}`);
   }
 
   const channels = ctx.channels.map((c): ChannelPricing => {
@@ -80,7 +79,7 @@ export function priceVariant(sheet: SheetData | null, prices: VariantPrices, ctx
     const price = raw !== null && raw !== undefined && raw > 0 ? raw : null;
 
     if (unitCost === null) {
-      return { channelId: c.id, status: "no_sheet", feesConfigured, price, profit: null, suggested: null };
+      return { channelId: c.id, status: blocked, feesConfigured, price, profit: null, suggested: null };
     }
     const suggested = suggestPrice(unitCost, fees, tax_pct, default_margin_pct, rounding_rule);
     if (price === null) {

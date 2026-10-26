@@ -100,6 +100,13 @@ Existe um usuário só para testes locais, com `E2E_EMAIL` e `E2E_PASSWORD` no `
   (vale também na calculadora, porque a regra está em `resolveFilament`, `lib/cost-sheet.ts`).
   A exclusão é detectada pela coluna `cost_sheet_filaments.spool_removed`, marcada por trigger quando o
   banco zera o `filament_id`; salvar a ficha de novo limpa a marca.
+- **Custo do material sem carretel válido** (regra única em `evaluateSheet`/`resolveFilament`,
+  `lib/cost-sheet.ts`, usada pela calculadora, pelo salvamento e pelos produtos):
+  1. média do estoque (só carretéis com saldo);
+  2. sem estoque: custo por grama do último carretel do material (pela data de compra; sem data, pelo
+     cadastro), com aviso "Sem estoque de [material], usando o último preço pago.";
+  3. material nunca comprado: **sem custo de filamento**. Nunca conta como R$ 0. Nos produtos é tão grave
+     quanto "sem ficha"; na calculadora o preço fica "—". A ficha pode ser salva, com `unit_cost` vazio.
 - **SKU único no catálogo inteiro** do usuário (produtos e variações juntos), sem diferenciar maiúsculas
   nem espaços nas pontas. Garantido por trigger (`check_catalog_sku`); SKU vazio vira null.
 - **`save_product`** grava produto, variações e preços numa transação. Variações são atualizadas no lugar

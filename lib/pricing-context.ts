@@ -1,6 +1,6 @@
 import "server-only";
 import type { PricingContext } from "@/lib/cost-sheet";
-import { averageCostByMaterial } from "@/lib/filaments";
+import { averageCostByMaterial, lastCostByMaterial } from "@/lib/filaments";
 import type { RoundingRule } from "@/lib/pricing";
 import type { createClient } from "@/lib/supabase/server";
 
@@ -26,7 +26,7 @@ export async function loadPricingContext(supabase: Supabase): Promise<PricingCon
       .order("sort_order"),
     supabase
       .from("filaments")
-      .select("id, material, color_name, color_hex, cost_per_gram, remaining_g, net_weight_g, status, filament_brands(name)")
+      .select("id, material, color_name, color_hex, cost_per_gram, remaining_g, net_weight_g, status, purchased_at, created_at, filament_brands(name)")
       .order("material")
       .order("color_name"),
   ]);
@@ -49,5 +49,6 @@ export async function loadPricingContext(supabase: Supabase): Promise<PricingCon
       brand: s.filament_brands?.name ?? null,
     })),
     materialAverages: Object.fromEntries(averageCostByMaterial(spoolRows)),
+    lastMaterialCosts: Object.fromEntries(lastCostByMaterial(spoolRows)),
   };
 }

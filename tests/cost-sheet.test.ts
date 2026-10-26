@@ -43,6 +43,7 @@ const ctx: PricingContext = {
     spool({ id: "vazio", color_name: "Vermelho", color_hex: "#ff0000", remaining_g: 0, status: "empty" }),
   ],
   materialAverages: { PLA: 0.11, PETG: 0.13 },
+  lastMaterialCosts: {},
 };
 
 describe("toCostInput", () => {
@@ -69,7 +70,7 @@ describe("toCostInput", () => {
     expect(input.filaments).toEqual([
       { grams: 30, costPerGram: 0.1, label: "PLA Preto" },
       { grams: 20, costPerGram: 0.13, label: "PETG (média)" },
-      { grams: 5, costPerGram: null, label: "TPU (média)" },
+      { grams: 5, costPerGram: null, label: "TPU (sem custo)" },
     ]);
     expect(input.printer?.purchasePrice).toBe(2500);
     expect(input.failureMarginPct).toBe(10);

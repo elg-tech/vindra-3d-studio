@@ -15,8 +15,11 @@ export type CalcFormValues = {
   postMinutes: string;
   purgeG: string;
   packagingCost: string;
-  /** source: "spool:<id>" ou "material:<Material>" */
-  filaments: { source: string; grams: string }[];
+  /**
+   * source: "spool:<id>" ou "material:<Material>".
+   * spoolRemoved: a ficha salva apontava para um carretel excluído (só para o aviso; trocar a fonte limpa).
+   */
+  filaments: { source: string; grams: string; spoolRemoved?: boolean }[];
   extras: { supplyId: string; name: string; quantity: string; unitCost: string }[];
   notes: string;
   sourceFilePath: string;
@@ -71,7 +74,7 @@ export function formToSheet(values: CalcFormValues, spools: ContextSpool[]): { s
     }
     const m = row.source.startsWith("material:") ? row.source.slice(9) : "PLA";
     const material: Material = (MATERIALS as readonly string[]).includes(m) ? (m as Material) : "Outro";
-    return { filamentId: null, material, colorHex: null, grams };
+    return { filamentId: null, material, colorHex: null, grams, spoolRemoved: row.spoolRemoved ?? false };
   });
 
   const extras = values.extras.map((e, i) => ({
@@ -119,6 +122,7 @@ export function sheetToForm(
     filaments: sheet.filaments.map((f) => ({
       source: f.filamentId ? spoolSource(f.filamentId) : materialSource(f.material),
       grams: field(f.grams),
+      ...(f.spoolRemoved ? { spoolRemoved: true } : {}),
     })),
     extras: sheet.extras.map((e) => ({
       supplyId: e.supplyId ?? "",

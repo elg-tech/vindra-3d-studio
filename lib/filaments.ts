@@ -53,25 +53,39 @@ export type SpoolForAverage = {
 
 /**
  * Custo médio por material, ponderado pelos gramas em estoque (é o que vai ser consumido).
- * Se não há estoque de um material, pondera pelo peso comprado de todos os carretéis dele.
+ * Material sem estoque fica de fora: quem usa cai em `lastCostByMaterial`.
  */
 export function averageCostByMaterial(spools: SpoolForAverage[]): Map<string, number> {
   const groups = new Map<string, SpoolForAverage[]>();
   for (const s of spools) {
-    if (s.cost_per_gram === null) continue;
+    if (s.cost_per_gram === null || s.remaining_g <= 0) continue;
     groups.set(s.material, [...(groups.get(s.material) ?? []), s]);
   }
 
   const result = new Map<string, number>();
   for (const [material, list] of groups) {
-    const inStock = list.filter((s) => s.remaining_g > 0);
-    const [items, weightOf] =
-      inStock.length > 0
-        ? [inStock, (s: SpoolForAverage) => s.remaining_g]
-        : [list, (s: SpoolForAverage) => s.net_weight_g];
-    const totalWeight = items.reduce((sum, s) => sum + weightOf(s), 0);
-    if (totalWeight <= 0) continue;
-    result.set(material, items.reduce((sum, s) => sum + (s.cost_per_gram ?? 0) * weightOf(s), 0) / totalWeight);
+    const totalWeight = list.reduce((sum, s) => sum + s.remaining_g, 0);
+    result.set(material, list.reduce((sum, s) => sum + (s.cost_per_gram ?? 0) * s.remaining_g, 0) / totalWeight);
   }
   return result;
+}
+
+export type SpoolForLastCost = {
+  material: string;
+  cost_per_gram: number | null;
+  /** yyyy-MM-dd; sem data de compra vale a data de cadastro. */
+  purchased_at: string | null;
+  created_at: string;
+};
+
+/** Custo por grama do carretel mais recente de cada material (pela compra; sem data, pelo cadastro). */
+export function lastCostByMaterial(spools: SpoolForLastCost[]): Map<string, number> {
+  const when = (s: SpoolForLastCost) => `${s.purchased_at ?? s.created_at.slice(0, 10)}|${s.created_at}`;
+  const latest = new Map<string, SpoolForLastCost>();
+  for (const s of spools) {
+    if (s.cost_per_gram === null) continue;
+    const current = latest.get(s.material);
+    if (!current || when(s) > when(current)) latest.set(s.material, s);
+  }
+  return new Map([...latest].map(([material, s]) => [material, s.cost_per_gram ?? 0]));
 }

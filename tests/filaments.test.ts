@@ -3,6 +3,7 @@ import {
   averageCostByMaterial,
   costPerGram,
   isLowStock,
+  lastCostByMaterial,
   remainingPercent,
   weighSpool,
 } from "@/lib/filaments";
@@ -73,12 +74,45 @@ describe("averageCostByMaterial", () => {
     expect(avg.get("PLA")).toBeCloseTo(0.1, 10);
   });
 
-  it("sem estoque, usa o peso comprado", () => {
+  it("material sem estoque fica de fora (não vira média nem zero)", () => {
     const avg = averageCostByMaterial([
       { material: "TPU", cost_per_gram: 0.2, remaining_g: 0, net_weight_g: 500 },
       { material: "TPU", cost_per_gram: 0.3, remaining_g: 0, net_weight_g: 1500 },
     ]);
-    // (0,2×500 + 0,3×1500) / 2000 = 0,275
-    expect(avg.get("TPU")).toBeCloseTo(0.275, 10);
+    expect(avg.has("TPU")).toBe(false);
+  });
+});
+
+describe("lastCostByMaterial", () => {
+  const spool = (material: string, cost: number, purchased_at: string | null, created_at: string) => ({
+    material,
+    cost_per_gram: cost,
+    purchased_at,
+    created_at,
+  });
+
+  it("usa o carretel comprado mais recentemente", () => {
+    const last = lastCostByMaterial([
+      spool("TPU", 0.2, "2026-03-10", "2026-10-01T10:00:00Z"),
+      spool("TPU", 0.3, "2026-08-05", "2026-09-01T10:00:00Z"),
+      spool("PLA", 0.1, "2026-01-01", "2026-01-01T10:00:00Z"),
+    ]);
+    expect(last.get("TPU")).toBe(0.3);
+    expect(last.get("PLA")).toBe(0.1);
+  });
+
+  it("sem data de compra, vale a data de cadastro; empate decide pelo cadastro", () => {
+    const last = lastCostByMaterial([
+      spool("PETG", 0.12, "2026-05-01", "2026-05-01T08:00:00Z"),
+      spool("PETG", 0.15, null, "2026-06-01T08:00:00Z"),
+      spool("ABS", 0.2, "2026-07-01", "2026-07-01T08:00:00Z"),
+      spool("ABS", 0.25, "2026-07-01", "2026-07-01T09:00:00Z"),
+    ]);
+    expect(last.get("PETG")).toBe(0.15);
+    expect(last.get("ABS")).toBe(0.25);
+  });
+
+  it("material nunca comprado não aparece", () => {
+    expect(lastCostByMaterial([]).has("ASA")).toBe(false);
   });
 });

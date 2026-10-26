@@ -5,7 +5,7 @@ import { notFound, redirect } from "next/navigation";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { type CalcFormValues, sheetToForm } from "@/lib/calculator-form";
-import type { Material } from "@/lib/filaments";
+import { sheetFromRow } from "@/lib/cost-sheet";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { loadPricingContext } from "@/lib/pricing-context";
 import { createClient, getCurrentUserId } from "@/lib/supabase/server";
@@ -44,32 +44,11 @@ export default async function CalculadoraPage({
       .maybeSingle();
     if (!s) notFound();
     initial = sheetToForm({
+      ...sheetFromRow(s),
       id: s.id,
       name: s.name,
       notes: s.notes,
       sourceFilePath: s.source_file_path,
-      printerId: s.printer_id,
-      printMinutes: s.print_minutes,
-      prepMinutes: s.prep_minutes,
-      postMinutes: s.post_minutes,
-      purgeG: s.purge_g,
-      packagingCost: s.packaging_cost,
-      quantity: s.quantity,
-      piecesPerPlate: s.pieces_per_plate,
-      filaments: [...s.cost_sheet_filaments]
-        .sort((a, b) => a.sort_order - b.sort_order)
-        .map((f) => ({
-          filamentId: f.filament_id,
-          material: f.material as Material,
-          colorHex: f.color_hex,
-          grams: f.grams,
-        })),
-      extras: s.cost_sheet_supplies.map((e) => ({
-        supplyId: e.supply_id,
-        name: e.name,
-        quantity: e.quantity,
-        unitCost: e.unit_cost,
-      })),
     });
   }
 

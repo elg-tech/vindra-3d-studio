@@ -12,6 +12,7 @@ import {
   type FilamentStatus,
   averageCostByMaterial,
   isLowStock,
+  lastCostByMaterial,
   remainingPercent,
 } from "@/lib/filaments";
 import { formatCurrency, formatGrams, formatUnitCost } from "@/lib/format";
@@ -38,7 +39,14 @@ export default async function FilamentosPage() {
   const active = list.filter((f) => f.status !== "empty");
   const finished = list.filter((f) => f.status === "empty");
   const lowStock = active.filter((f) => isLowStock(f.remaining_g, f.min_stock_g, f.status as FilamentStatus));
-  const averages = [...averageCostByMaterial(list)].sort(([a], [b]) => a.localeCompare(b));
+  // material sem estoque continua visível com o último preço pago (é o que a calculadora usa)
+  const stockAverages = averageCostByMaterial(list);
+  const averages = [...lastCostByMaterial(list)]
+    .map(([material, last]) => {
+      const avg = stockAverages.get(material);
+      return { material, cost: avg ?? last, inStock: avg !== undefined };
+    })
+    .sort((a, b) => a.material.localeCompare(b.material));
   const totalGrams = active.reduce((sum, f) => sum + f.remaining_g, 0);
 
   return (
@@ -76,13 +84,13 @@ export default async function FilamentosPage() {
                 Custo médio por material (ponderado pelo estoque)
               </h2>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                {averages.map(([material, avg]) => (
+                {averages.map(({ material, cost, inStock }) => (
                   <Card key={material} className="gap-1 py-4">
                     <CardContent className="px-4">
                       <p className="text-sm text-muted-foreground">{material}</p>
-                      <p className="text-lg font-semibold tabular-nums">{formatUnitCost(avg)}/g</p>
+                      <p className="text-lg font-semibold tabular-nums">{formatUnitCost(cost)}/g</p>
                       <p className="text-xs text-muted-foreground tabular-nums">
-                        {formatCurrency(avg * 1000)}/kg
+                        {inStock ? `${formatCurrency(cost * 1000)}/kg` : "sem estoque · último preço pago"}
                       </p>
                     </CardContent>
                   </Card>

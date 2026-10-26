@@ -36,6 +36,7 @@ const ctx: PricingContext = {
     spool({ id: "vermelho", color_name: "Vermelho", color_hex: "#ff0000", remaining_g: 0, status: "empty" }),
   ],
   materialAverages: { PLA: 0.12 },
+  lastMaterialCosts: {},
 };
 
 // 100 g sem impressora, mão de obra nem insumos: só filamento + 10% de falha.
@@ -145,6 +146,49 @@ describe("priceVariant", () => {
       expect(v.unitCost).toBeCloseTo(13.2, 6);
       expect(v.warnings).toEqual([]);
     });
+  });
+});
+
+describe("material sem estoque", () => {
+  // Nenhum carretel de PLA com saldo: não há média. O último PLA comprado custou R$ 0,15/g.
+  const noStock: PricingContext = { ...ctx, materialAverages: {}, lastMaterialCosts: { PLA: 0.15 } };
+
+  it("usa o último preço pago e avisa (nunca custo zero)", () => {
+    const v = priceVariant(sheet({ filamentId: null }), { shopee: 40 }, noStock);
+    // 100 g × 0,15 = 15 + 10% = 16,50
+    expect(v.unitCost).toBeCloseTo(16.5, 6);
+    expect(v.warnings).toEqual(["Sem estoque de PLA, usando o último preço pago."]);
+    expect(channel(v, "shopee").status).toBe("ok");
+  });
+
+  it("carretel que acabou e sem estoque do material: os dois avisos", () => {
+    const v = priceVariant(sheet({ filamentId: "vermelho" }), {}, noStock);
+    expect(v.unitCost).toBeCloseTo(16.5, 6);
+    expect(v.warnings).toEqual(["O carretel PLA Vermelho acabou.", "Sem estoque de PLA, usando o último preço pago."]);
+  });
+
+  it("carretel excluído e sem estoque do material", () => {
+    const v = priceVariant(sheet({ filamentId: null, spoolRemoved: true }), {}, noStock);
+    expect(v.unitCost).toBeCloseTo(16.5, 6);
+    expect(v.warnings).toEqual(["O carretel escolhido foi excluído.", "Sem estoque de PLA, usando o último preço pago."]);
+  });
+
+  it("material nunca comprado: sem custo de filamento, tão grave quanto sem ficha", () => {
+    const v = priceVariant(sheet({ filamentId: null, material: "TPU" }), { shopee: 40 }, ctx);
+    expect(v.unitCost).toBeNull();
+    expect(v.channels.every((c) => c.status === "no_filament_cost" && c.profit === null && c.suggested === null)).toBe(
+      true,
+    );
+    expect(v.worst).toBe("no_filament_cost");
+    expect(v.warnings).toEqual(["Sem custo de filamento: nenhum carretel de TPU cadastrado. Cadastre um em Filamentos."]);
+    expect(worstStatus(["no_filament_cost", "fees_not_configured"])).toBe("no_filament_cost");
+    expect(worstStatus(["no_filament_cost", "below_min"])).toBe("below_min");
+  });
+
+  it("material nunca comprado com 0 g não bloqueia", () => {
+    const s = sheet();
+    s.filaments.push({ filamentId: null, material: "TPU", colorHex: null, grams: 0 });
+    expect(priceVariant(s, {}, ctx).unitCost).toBeCloseTo(11, 6);
   });
 });
 

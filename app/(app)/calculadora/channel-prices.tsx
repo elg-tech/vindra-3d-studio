@@ -57,11 +57,14 @@ function ProfitLines({ r, minMarginPct }: { r: ProfitResult; minMarginPct: numbe
 
 export function ChannelPrices({
   unitCost,
+  blockedMessage,
   ctx,
   marginPct,
 }: {
   /** null enquanto faltar filamento ou tempo: o custo ainda não diz nada. */
   unitCost: number | null;
+  /** Por que não há custo, quando não é só falta de preencher (ex.: material nunca comprado). */
+  blockedMessage?: string;
   ctx: PricingContext;
   marginPct: number;
 }) {
@@ -94,7 +97,9 @@ export function ChannelPrices({
             </CardHeader>
             <CardContent className="px-4">
               {r === null ? (
-                <p className="text-sm text-muted-foreground">Preencha filamento e tempo para ver o preço.</p>
+                <p className="text-sm text-muted-foreground">
+                  {blockedMessage ?? "Preencha filamento e tempo para ver o preço."}
+                </p>
               ) : r.ok ? (
                 <ProfitLines r={r} minMarginPct={min_margin_pct} />
               ) : (
@@ -107,13 +112,21 @@ export function ChannelPrices({
           </Card>
         );
       })}
-      <ReverseMode unitCost={unitCost} ctx={ctx} />
+      <ReverseMode unitCost={unitCost} blockedMessage={blockedMessage} ctx={ctx} />
     </div>
   );
 }
 
 /** "Quero vender por R$ X no canal Y: qual meu lucro?" */
-function ReverseMode({ unitCost, ctx }: { unitCost: number | null; ctx: PricingContext }) {
+function ReverseMode({
+  unitCost,
+  blockedMessage,
+  ctx,
+}: {
+  unitCost: number | null;
+  blockedMessage?: string;
+  ctx: PricingContext;
+}) {
   const [channelId, setChannelId] = useState(ctx.channels[0]?.id ?? "");
   const [price, setPrice] = useState("");
   const channel = ctx.channels.find((c) => c.id === channelId);
@@ -169,7 +182,9 @@ function ReverseMode({ unitCost, ctx }: { unitCost: number | null; ctx: PricingC
             <ProfitLines r={result} minMarginPct={ctx.settings.min_margin_pct} />
           ) : (
             <p className="text-sm text-muted-foreground">
-              {unitCost === null ? "Preencha filamento e tempo para ver o lucro." : "Digite um preço para ver o lucro."}
+              {unitCost === null
+                ? (blockedMessage ?? "Preencha filamento e tempo para ver o lucro.")
+                : "Digite um preço para ver o lucro."}
             </p>
           )}
         </div>

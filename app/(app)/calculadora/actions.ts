@@ -2,8 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { type ActionResult, dbError, parseInput } from "@/lib/actions";
-import { toCostInput } from "@/lib/cost-sheet";
-import { PricingInputError, calculateCost } from "@/lib/pricing";
+import { evaluateSheet } from "@/lib/cost-sheet";
 import { loadPricingContext } from "@/lib/pricing-context";
 import { createClient, getCurrentUserId } from "@/lib/supabase/server";
 import { costSheetSchema } from "@/lib/validation/schemas";
@@ -21,19 +20,16 @@ export async function saveCostSheet(input: unknown): Promise<ActionResult<{ id: 
   }
 
   const supabase = await createClient();
-  let unitCost: number;
-  try {
-    // recalcula no servidor com os dados do banco: não confia no valor do navegador
-    const ctx = await loadPricingContext(supabase);
-    unitCost = calculateCost(toCostInput(sheet, ctx)).unit.total;
-  } catch (error) {
-    if (error instanceof PricingInputError) return { ok: false, error: error.message };
-    throw error;
-  }
+  // recalcula no servidor com os dados do banco: não confia no valor do navegador
+  const evaluation = evaluateSheet(sheet, await loadPricingContext(supabase));
+  if (!evaluation.ok && evaluation.reason === "invalid") return { ok: false, error: evaluation.message };
+  // material nunca comprado: salva sem custo em cache (os produtos mostram "sem custo de filamento")
+  const unitCost = evaluation.ok ? Math.round(evaluation.result.unit.total * 10_000) / 10_000 : null;
 
   const { data, error } = await supabase.rpc("save_cost_sheet", {
     p_sheet: sheet,
-    p_unit_cost: Math.round(unitCost * 10_000) / 10_000,
+    // a função grava null em unit_cost; o tipo gerado não expressa argumento nulo
+    p_unit_cost: unitCost as number,
   });
   if (error) {
     if (error.message.includes("cost_sheet_not_found")) return { ok: false, error: "Ficha não encontrada." };

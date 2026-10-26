@@ -14,11 +14,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { BambuPlate } from "@/lib/bambu3mf";
 import { type CalcFormValues, EMPTY_FORM, formToSheet, materialSource, spoolSource } from "@/lib/calculator-form";
-import { type PricingContext, matchSpool, toCostInput } from "@/lib/cost-sheet";
+import { type PricingContext, evaluateSheet, matchSpool } from "@/lib/cost-sheet";
 import { MATERIALS } from "@/lib/filaments";
 import { formatCurrency, formatGrams, formatNumber, formatUnitCost } from "@/lib/format";
 import { parseDecimal } from "@/lib/numbers";
-import { type CostResult, PricingInputError, calculateCost } from "@/lib/pricing";
 import { createClient } from "@/lib/supabase/client";
 import { saveCostSheet } from "./actions";
 import { ChannelPrices } from "./channel-prices";
@@ -55,18 +54,14 @@ export function Calculator({
   const values = useWatch({ control }) as CalcFormValues;
 
   const { sheet, errors } = useMemo(() => formToSheet(values, ctx.spools), [values, ctx.spools]);
-  const calc = useMemo((): { result: CostResult } | { error: string } => {
-    try {
-      return { result: calculateCost(toCostInput(sheet, ctx)) };
-    } catch (e) {
-      if (e instanceof PricingInputError) return { error: e.message };
-      throw e;
-    }
-  }, [sheet, ctx]);
+  // mesma regra dos produtos: carretel acabado/excluído, sem estoque, material nunca comprado
+  const evaluation = useMemo(() => evaluateSheet(sheet, ctx), [sheet, ctx]);
 
   const marginN = parseDecimal(marginPct);
   const margin = marginN !== null && marginN >= 0 && marginN < 100 ? marginN : ctx.settings.default_margin_pct;
-  const activeSpools = ctx.spools.filter((s) => s.status !== "empty");
+  // carretel que acabou só aparece na linha que já o usa (ficha antiga), para o campo não ficar em branco
+  const visibleSpools = (value: string) =>
+    ctx.spools.filter((s) => s.status !== "empty" || value === spoolSource(s.id));
   const packaging = supplies.filter((s) => s.is_packaging);
   const others = supplies.filter((s) => !s.is_packaging);
 
@@ -106,8 +101,9 @@ export function Calculator({
       toast.error(errors[0]);
       return;
     }
-    if ("error" in calc) {
-      toast.error(calc.error);
+    // sem custo de filamento pode salvar (o custo aparece quando houver carretel); ficha inválida não
+    if (!evaluation.ok && evaluation.reason === "invalid") {
+      toast.error(evaluation.message);
       return;
     }
     startSaving(async () => {
@@ -152,9 +148,10 @@ export function Calculator({
     router.replace("/calculadora", { scroll: false });
   }
 
-  const result = "result" in calc ? calc.result : null;
+  const result = evaluation.ok ? evaluation.result : null;
   // sem filamento ou sem tempo o custo é só taxa fixa e embalagem: o preço sugerido enganaria
   const hasBasics = result !== null && result.grams > 0 && result.printHours > 0;
+  const warnings = [...new Set([...errors, ...evaluation.warnings, ...(result?.warnings ?? [])])];
 
   return (
     <form onSubmit={onSave} noValidate className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)] lg:items-start">
@@ -236,7 +233,13 @@ export function Calculator({
                       control={control}
                       name={`filaments.${i}.source`}
                       render={({ field }) => (
-                        <Select value={field.value} onValueChange={field.onChange}>
+                        <Select
+                          value={field.value}
+                          onValueChange={(v) => {
+                            field.onChange(v);
+                            setValue(`filaments.${i}.spoolRemoved`, false);
+                          }}
+                        >
                           <SelectTrigger
                             id={id}
                             className="w-full min-w-0 *:data-[slot=select-value]:block *:data-[slot=select-value]:min-w-0 *:data-[slot=select-value]:truncate"
@@ -244,13 +247,14 @@ export function Calculator({
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            {activeSpools.length > 0 && (
+                            {visibleSpools(field.value).length > 0 && (
                               <SelectGroup>
                                 <SelectLabel>Carretéis</SelectLabel>
-                                {activeSpools.map((s) => (
+                                {visibleSpools(field.value).map((s) => (
                                   <SelectItem key={s.id} value={spoolSource(s.id)}>
                                     <ColorDot hex={s.color_hex} />
                                     {s.material} {s.color_name}
+                                    {s.status === "empty" && " (acabou)"}
                                     <span className="text-muted-foreground tabular-nums">
                                       {s.cost_per_gram !== null && ` · ${formatUnitCost(s.cost_per_gram)}/g`}
                                     </span>
@@ -266,7 +270,9 @@ export function Calculator({
                                   <span className="text-muted-foreground tabular-nums">
                                     {ctx.materialAverages[m] !== undefined
                                       ? ` · ${formatUnitCost(ctx.materialAverages[m])}/g`
-                                      : " · sem estoque"}
+                                      : ctx.lastMaterialCosts[m] !== undefined
+                                        ? ` · sem estoque, último ${formatUnitCost(ctx.lastMaterialCosts[m])}/g`
+                                        : " · nunca comprado"}
                                   </span>
                                 </SelectItem>
                               ))}
@@ -461,16 +467,16 @@ export function Calculator({
             )}
           </CardHeader>
           <CardContent className="grid gap-4">
-            {"error" in calc ? (
+            {!evaluation.ok ? (
               <p role="alert" className="text-sm text-destructive">
-                {calc.error}
+                {evaluation.message}
               </p>
             ) : (
-              <CostBreakdown unit={calc.result.unit} />
+              <CostBreakdown unit={evaluation.result.unit} />
             )}
-            {(errors.length > 0 || (result && result.warnings.length > 0)) && (
+            {warnings.length > 0 && (
               <ul className="grid gap-1 rounded-lg border border-warning/40 bg-warning/10 p-3 text-xs">
-                {[...errors, ...(result?.warnings ?? [])].map((w) => (
+                {warnings.map((w) => (
                   <li key={w} className="flex gap-2">
                     <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-warning" aria-hidden />
                     {w}
@@ -504,7 +510,16 @@ export function Calculator({
             <CardDescription>Preço que garante a margem depois das taxas, arredondado para cima.</CardDescription>
           </CardHeader>
           <CardContent>
-            <ChannelPrices unitCost={hasBasics ? result.unit.total : null} ctx={ctx} marginPct={margin} />
+            <ChannelPrices
+              unitCost={hasBasics ? result.unit.total : null}
+              blockedMessage={
+                !evaluation.ok && evaluation.reason === "no_filament_cost"
+                  ? "Sem custo de filamento: cadastre um carretel do material para ver o preço."
+                  : undefined
+              }
+              ctx={ctx}
+              marginPct={margin}
+            />
           </CardContent>
         </Card>
 
