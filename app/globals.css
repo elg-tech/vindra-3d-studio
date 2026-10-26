@@ -89,6 +89,14 @@
   --chart-4: #3a6fd8;
   --chart-5: #8a8f98;
 
+  /* breakdown de custo (5 fatias), validado com o validador de paleta: claro passa com
+     aviso de contraste → sempre acompanhado de tabela */
+  --cost-1: #1baf7a;
+  --cost-2: #eb6834;
+  --cost-3: #2a78d6;
+  --cost-4: #e87ba4;
+  --cost-5: #6250d6;
+
   --radius: 0.75rem;
   --sidebar: #f4f0e8;
   --sidebar-foreground: #23252a;
@@ -127,6 +135,12 @@
   --chart-3: #9b7bea;
   --chart-4: #5b8def;
   --chart-5: #8a8f98;
+
+  --cost-1: #1f9e83;
+  --cost-2: #d95926;
+  --cost-3: #3987e5;
+  --cost-4: #d55181;
+  --cost-5: #9085e9;
 
   --sidebar: #1a1b20;
   --sidebar-foreground: #f4f0e8;

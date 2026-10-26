@@ -42,3 +42,6 @@ next-env.d.ts
 
 # env (mantém o exemplo versionado)
 !.env.example
+
+# arquivos .3mf reais ficam só na máquina (grandes); versionamos só os trechos usados nos testes
+tests/fixtures/*.3mf

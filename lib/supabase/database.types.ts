@@ -1171,6 +1171,10 @@ export type Database = {
     Functions: {
       approve_public_quote: { Args: { p_token: string }; Returns: undefined }
       get_public_quote: { Args: { p_token: string }; Returns: Json }
+      save_cost_sheet: {
+        Args: { p_sheet: Json; p_unit_cost: number }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never
