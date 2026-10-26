@@ -92,7 +92,7 @@ export function Calculator({
     toast.success(`Mesa ${plate.index} importada: ${matched.length} filamento(s), ${Math.floor(total / 60)}h ${total % 60}min.`, {
       description:
         (unmatched > 0 ? `${unmatched} sem carretel da mesma cor no estoque: usando a média do material. ` : "") +
-        "Os gramas do Bambu Studio já incluem a purga. Confira as peças por mesa.",
+        "Confira se a purga já está somada nas gramas e quantas peças cabem por mesa.",
       duration: 8000,
     });
   }
@@ -153,6 +153,8 @@ export function Calculator({
   }
 
   const result = "result" in calc ? calc.result : null;
+  // sem filamento ou sem tempo o custo é só taxa fixa e embalagem: o preço sugerido enganaria
+  const hasBasics = result !== null && result.grams > 0 && result.printHours > 0;
 
   return (
     <form onSubmit={onSave} noValidate className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)] lg:items-start">
@@ -188,7 +190,8 @@ export function Calculator({
                 />
               )}
             </FieldShell>
-            <fieldset className="grid gap-1.5">
+            {/* content-start: sem ele a linha do grid estica até a altura do vizinho e "h"/"min" descem */}
+            <fieldset className="grid content-start gap-1.5">
               <legend className="mb-1.5 text-sm font-medium">Tempo de impressão (por mesa)</legend>
               <div className="flex gap-2">
                 <div className="relative flex-1">
@@ -226,14 +229,18 @@ export function Calculator({
           <CardContent className="grid gap-3">
             {filaments.fields.map((row, i) => (
               <div key={row.id} className="grid grid-cols-[minmax(0,1fr)_6.5rem_auto] items-end gap-2">
-                <FieldShell label={`Filamento ${i + 1}`}>
+                {/* min-w-0 + block/truncate: no celular o nome longo termina em "…" em vez de passar por baixo das gramas */}
+                <FieldShell label={`Filamento ${i + 1}`} className="min-w-0">
                   {({ id }) => (
                     <Controller
                       control={control}
                       name={`filaments.${i}.source`}
                       render={({ field }) => (
                         <Select value={field.value} onValueChange={field.onChange}>
-                          <SelectTrigger id={id} className="w-full">
+                          <SelectTrigger
+                            id={id}
+                            className="w-full min-w-0 *:data-[slot=select-value]:block *:data-[slot=select-value]:min-w-0 *:data-[slot=select-value]:truncate"
+                          >
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -310,7 +317,7 @@ export function Calculator({
                 numeric
                 suffix="g"
                 className="w-48"
-                hint="Na importação do Bambu já vem incluso."
+                hint="Deixe 0 se o fatiador já somou purga e torre nas gramas."
               />
             </div>
           </CardContent>
@@ -480,7 +487,7 @@ export function Calculator({
               Preço por canal
               <span className="flex items-center gap-2 text-sm font-normal">
                 <Label htmlFor="margin">Margem</Label>
-                <span className="relative">
+                <span className="relative inline-flex">
                   <Input
                     id="margin"
                     inputMode="decimal"
@@ -497,7 +504,7 @@ export function Calculator({
             <CardDescription>Preço que garante a margem depois das taxas, arredondado para cima.</CardDescription>
           </CardHeader>
           <CardContent>
-            {result && <ChannelPrices unitCost={result.unit.total} ctx={ctx} marginPct={margin} />}
+            <ChannelPrices unitCost={hasBasics ? result.unit.total : null} ctx={ctx} marginPct={margin} />
           </CardContent>
         </Card>
 
@@ -507,7 +514,7 @@ export function Calculator({
               label="Nome da ficha"
               registration={register("name")}
               error={form.formState.errors.name}
-              placeholder="Suporte de controle Xbox"
+              placeholder="ex.: Suporte de controle Xbox"
             />
             {pendingFile && (
               <p className="text-xs text-muted-foreground">O arquivo {pendingFile.name} será guardado junto com a ficha.</p>
