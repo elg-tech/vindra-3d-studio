@@ -30,3 +30,20 @@ export function formatDate(date: Date | string): string {
 export function formatDateTime(date: Date | string): string {
   return formatInTimeZone(new Date(date), TIME_ZONE, "dd/MM/yyyy HH:mm");
 }
+
+const unitCostFormatter = new Intl.NumberFormat("pt-BR", {
+  style: "currency",
+  currency: "BRL",
+  minimumFractionDigits: 4,
+  maximumFractionDigits: 4,
+});
+
+/** Custo unitário fino (R$/g, R$/h) com 4 casas: 0.115 → "R$ 0,1150". */
+export function formatUnitCost(value: number): string {
+  return unitCostFormatter.format(value);
+}
+
+/** Gramas com separador pt-BR: 1234.5 → "1.234,5 g". */
+export function formatGrams(value: number): string {
+  return `${formatNumber(value)} g`;
+}

@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { formatCurrency, formatDate, formatDateTime, formatNumber } from "@/lib/format";
+import {
+  formatCurrency,
+  formatDate,
+  formatDateTime,
+  formatGrams,
+  formatNumber,
+  formatUnitCost,
+} from "@/lib/format";
 
 // Intl usa espaço não separável entre "R$" e o valor.
 const normalize = (s: string) => s.replace(/ /g, " ");
@@ -28,5 +35,17 @@ describe("formatDate", () => {
 
   it("formata data e hora", () => {
     expect(formatDateTime("2026-01-02T15:30:00Z")).toBe("02/01/2026 12:30");
+  });
+});
+
+describe("formatUnitCost", () => {
+  it("mostra 4 casas", () => {
+    expect(normalize(formatUnitCost(0.115))).toBe("R$ 0,1150");
+  });
+});
+
+describe("formatGrams", () => {
+  it("usa separador pt-BR", () => {
+    expect(formatGrams(1234.5)).toBe("1.234,5 g");
   });
 });
