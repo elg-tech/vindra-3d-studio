@@ -7,7 +7,7 @@
 > **Quando o prompt e este arquivo divergirem, vale este arquivo.** O prompt é o original;
 > as mudanças combinadas depois estão em "Onde o prompt ficou desatualizado" e em "Decisões".
 
-Última atualização: 26/10/2026 (ajustes da Fase 5 e prompt versionado).
+Última atualização: 26/10/2026 (Fase 6 concluída).
 
 ## Fases
 
@@ -18,8 +18,8 @@
 | 3 | Layout, tema da marca e PWA | ✅ concluída | `a0a4d59` |
 | 4 | Configurações, impressoras, filamentos e insumos | ✅ concluída | `95a3483` |
 | 5 | Calculadora de custo e importação `.3mf` | ✅ concluída | `b8c4039`, ajustes em `627839a` |
-| 6 | Produtos e variações | pronta, aguardando conferência do Enzo para o push | `6dd5665`, `1317450` e o commit das telas |
-| 7 | Clientes, orçamentos, página pública e PDF | | |
+| 6 | Produtos e variações | ✅ concluída | `6dd5665`, `1317450`, `62c4aef` |
+| 7 | Clientes, orçamentos, página pública e PDF | próxima: plano em aprovação | |
 | 8 | Pedidos (kanban) e baixa de filamento | | |
 | 9 | Financeiro e dashboard | | |
 | 10 | Polimento e deploy | | |
@@ -128,5 +128,7 @@ Existe um usuário só para testes locais, com `E2E_EMAIL` e `E2E_PASSWORD` no `
   e com a pesagem real. Se não bater, a importação precisa preencher a purga com a diferença.
 - [ ] **Conferir impressora A1 x A1 mini.** O seed cadastra uma Bambu Lab A1, mas o `.3mf` real recebido
   era de uma A1 mini. Confirmar qual impressora é usada (ou se são as duas) e ajustar o cadastro.
+- [ ] **Foto por variação.** O banco já tem `product_variants.image_path`, mas a tela só tem a foto do produto.
+  Acrescentar o envio por variação (mesmo fluxo da foto do produto) e usar no orçamento quando houver.
 - [ ] Revisar a paleta de canais nos gráficos: azul e violeta lado a lado reprovam no validador de
   daltonismo (Fase 9).
