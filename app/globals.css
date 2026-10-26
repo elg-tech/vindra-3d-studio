@@ -7,7 +7,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
+  --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
@@ -27,6 +27,9 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-warning: var(--warning);
+  --color-success: var(--success);
+  --color-brand-green: var(--brand-green);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -48,73 +51,91 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/*
+ * Paleta Vindra 3D — extraída do logo (verde #109079, grafite #23252A, creme #F4F0E8).
+ * Contrastes conferidos (WCAG AA). Vermelho e âmbar são exclusivos de prejuízo/atraso e alerta;
+ * nunca usar como cor de série em gráficos.
+ */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --brand-green: #109079;
+  --brand-ink: #23252a;
+  --brand-cream: #f4f0e8;
+
+  --background: #faf8f3;
+  --foreground: #23252a;
+  --card: #ffffff;
+  --card-foreground: #23252a;
+  --popover: #ffffff;
+  --popover-foreground: #23252a;
+  --primary: #0e7f6b;
+  --primary-foreground: #ffffff;
+  --secondary: #efebe2;
+  --secondary-foreground: #23252a;
+  --muted: #efebe2;
+  --muted-foreground: #5f636b;
+  --accent: #e6f3ef;
+  --accent-foreground: #0b5f50;
+  --destructive: #c4383d;
+  --warning: #8f5a00;
+  --success: #0e7f6b;
+  --border: #e3ded3;
+  --input: #d9d3c6;
+  --ring: #109079;
+
+  /* séries: 1 Venda direta, 2 Shopee, 3 TikTok, 4 extra, 5 neutro */
+  --chart-1: #0e7f6b;
+  --chart-2: #d9622a;
+  --chart-3: #7c5bd6;
+  --chart-4: #3a6fd8;
+  --chart-5: #8a8f98;
+
+  --radius: 0.75rem;
+  --sidebar: #f4f0e8;
+  --sidebar-foreground: #23252a;
+  --sidebar-primary: #0e7f6b;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e6f3ef;
+  --sidebar-accent-foreground: #0b5f50;
+  --sidebar-border: #e3ded3;
+  --sidebar-ring: #109079;
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: #16171b;
+  --foreground: #f4f0e8;
+  --card: #1f2126;
+  --card-foreground: #f4f0e8;
+  --popover: #1f2126;
+  --popover-foreground: #f4f0e8;
+  --primary: #2bb89a;
+  --primary-foreground: #0d1f1a;
+  --secondary: #2a2c32;
+  --secondary-foreground: #f4f0e8;
+  --muted: #2a2c32;
+  --muted-foreground: #a1a5ad;
+  --accent: #183a33;
+  --accent-foreground: #7fe0c8;
+  --destructive: #f2555a;
+  --warning: #e8a530;
+  --success: #2bb89a;
+  --border: #2e3036;
+  --input: #383a41;
+  --ring: #109079;
+
+  --chart-1: #2bb89a;
+  --chart-2: #f07b3f;
+  --chart-3: #9b7bea;
+  --chart-4: #5b8def;
+  --chart-5: #8a8f98;
+
+  --sidebar: #1a1b20;
+  --sidebar-foreground: #f4f0e8;
+  --sidebar-primary: #2bb89a;
+  --sidebar-primary-foreground: #0d1f1a;
+  --sidebar-accent: #183a33;
+  --sidebar-accent-foreground: #7fe0c8;
+  --sidebar-border: #2e3036;
+  --sidebar-ring: #109079;
 }
 
 @layer base {
@@ -126,5 +147,6 @@
   }
   html {
     @apply font-sans;
+    -webkit-tap-highlight-color: transparent;
   }
 }

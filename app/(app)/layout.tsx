@@ -1,4 +1,7 @@
 import { redirect } from "next/navigation";
+import { BottomNav } from "@/components/layout/bottom-nav";
+import { Sidebar } from "@/components/layout/sidebar";
+import { TopBar } from "@/components/layout/top-bar";
 import { getCurrentUserId } from "@/lib/supabase/server";
 
 // O proxy faz a checagem otimista; aqui validamos de verdade antes de renderizar.
@@ -6,5 +9,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const userId = await getCurrentUserId();
   if (!userId) redirect("/login");
 
-  return <>{children}</>;
+  return (
+    <div className="flex min-h-dvh">
+      <Sidebar />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <TopBar />
+        <main className="mx-auto w-full max-w-6xl flex-1 px-4 pt-6 pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:px-6 md:pb-10">
+          {children}
+        </main>
+      </div>
+      <BottomNav />
+    </div>
+  );
 }
