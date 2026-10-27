@@ -3,6 +3,7 @@
 import {
   AlertTriangle,
   CheckCircle2,
+  ClipboardList,
   Copy,
   CopyPlus,
   ExternalLink,
@@ -35,6 +36,7 @@ import type { QuoteCatalogOption } from "@/lib/quote-catalog";
 import { type QuoteStatus, quoteMessage, quoteProfit, quoteTotals, whatsappLink } from "@/lib/quotes";
 import { cn } from "@/lib/utils";
 import { type QuoteInput, quoteSchema } from "@/lib/validation/schemas";
+import { createOrderFromQuote } from "../pedidos/actions";
 import { deleteQuote, duplicateQuote, markQuoteSent, saveQuote, setQuoteOutcome } from "./actions";
 import { QuoteStatusBadge } from "./quote-status-badge";
 
@@ -47,6 +49,8 @@ export type ExistingQuote = {
   status: QuoteStatus;
   approvedAt: string | null;
   rejectedAt: string | null;
+  /** Pedido criado a partir deste orçamento. */
+  order: { id: string; number: string } | null;
 };
 
 const ADD_PLACEHOLDER = "add";
@@ -528,6 +532,32 @@ function QuoteActions({
         )}
       </CardHeader>
       <CardContent className="grid gap-2">
+        {quote.order ? (
+          <Button asChild>
+            <Link href={`/pedidos/${quote.order.id}`}>
+              <ClipboardList aria-hidden /> Ver pedido {quote.order.number}
+            </Link>
+          </Button>
+        ) : (
+          quote.status === "approved" && (
+            <Button
+              type="button"
+              disabled={isPending}
+              onClick={() =>
+                startTransition(async () => {
+                  const result = await createOrderFromQuote(quote.id);
+                  if (!result.ok) toast.error(result.error);
+                  else {
+                    toast.success(result.message);
+                    if (result.data) router.push(`/pedidos/${result.data.id}`);
+                  }
+                })
+              }
+            >
+              <ClipboardList aria-hidden /> Converter em pedido
+            </Button>
+          )
+        )}
         {open && (
           <>
             <Button type="button" onClick={sendWhatsapp} disabled={isPending}>

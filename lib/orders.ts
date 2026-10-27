@@ -2,7 +2,7 @@ import { addDays, getISODay, parseISO } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
 import { type ContextSpool, type PricingContext, type SheetData, matchSpool, printerCosts } from "@/lib/cost-sheet";
 import { depreciationPerHour, energyCostPerHour } from "@/lib/pricing";
-import { todayIso } from "@/lib/quotes";
+import { daysUntil, todayIso } from "@/lib/quotes";
 
 // ---------------------------------------------------------------
 // Status e colunas
@@ -167,7 +167,7 @@ export function moveWarning(target: OrderStatus, state: PaymentState): string | 
   if (state === "platform" || state === "paid") return null;
   if (target === "printing" && (state === "awaiting_deposit" || state === "awaiting_payment"))
     return state === "awaiting_deposit" ? "O sinal ainda não foi pago." : "O pedido ainda não foi pago.";
-  if ((target === "shipped" || target === "delivered") && state !== "paid")
+  if (target === "shipped" || target === "delivered")
     return state === "deposit_paid" ? "O restante ainda não foi pago." : "O pedido ainda não foi pago.";
   return null;
 }
@@ -209,4 +209,17 @@ export function orderProfit(o: {
   if (itemsCost === null) return { itemsCost, tax, profit: null, marginPct: null };
   const profit = o.total - o.channelFees - tax - o.shipping - itemsCost - o.failuresCost;
   return { itemsCost, tax, profit, marginPct: o.total > 0 ? (profit / o.total) * 100 : null };
+}
+
+/** Prazo do pedido: atrasado, vence hoje ou no prazo (null sem prazo). Pedido enviado/entregue não atrasa. */
+export function dueState(dueDate: string | null, status: OrderStatus, now = new Date()): "overdue" | "today" | "ok" | null {
+  if (!dueDate || status === "shipped" || status === "delivered" || status === "cancelled") return null;
+  const days = daysUntil(dueDate, now);
+  return days < 0 ? "overdue" : days === 0 ? "today" : "ok";
+}
+
+/** 150 → "2h30"; 45 → "45 min". */
+export function formatMinutes(minutes: number): string {
+  const m = Math.round(minutes);
+  return m >= 60 ? `${Math.floor(m / 60)}h${m % 60 ? String(m % 60).padStart(2, "0") : ""}` : `${m} min`;
 }

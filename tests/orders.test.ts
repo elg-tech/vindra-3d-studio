@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ContextSpool, PricingContext, SheetData } from "@/lib/cost-sheet";
 import {
   addBusinessDays,
+  dueState,
   dueDateFromToday,
   expectedConsumption,
   failureCost,
@@ -184,5 +185,16 @@ describe("custos do pedido", () => {
     // 120 − 6 − 7,20 − 20 − 20 − 4,02 = 62,78
     expect(p.profit).toBeCloseTo(62.78, 6);
     expect(orderProfit({ total: 50, channelFees: 0, taxPct: 0, shipping: 0, items: [{ quantity: 1, unitCost: null }], failuresCost: 0 }).profit).toBeNull();
+  });
+});
+
+describe("dueState", () => {
+  const now = new Date("2026-10-27T15:00:00Z");
+  it("atrasado, vence hoje, no prazo; enviado não atrasa", () => {
+    expect(dueState("2026-10-26", "printing", now)).toBe("overdue");
+    expect(dueState("2026-10-27", "queued", now)).toBe("today");
+    expect(dueState("2026-10-30", "queued", now)).toBe("ok");
+    expect(dueState("2026-10-26", "shipped", now)).toBeNull();
+    expect(dueState(null, "queued", now)).toBeNull();
   });
 });

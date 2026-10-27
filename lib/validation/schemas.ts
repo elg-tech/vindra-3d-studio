@@ -364,3 +364,70 @@ export const quoteSchema = z
   });
 
 export type QuoteInput = z.input<typeof quoteSchema>;
+
+// ---------------------------------------------------------------
+// Pedidos
+// ---------------------------------------------------------------
+const isoDate = (message = "Data inválida.") => z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, message);
+const optionalIsoDate = () =>
+  z
+    .string()
+    .trim()
+    .refine((v) => v === "" || /^\d{4}-\d{2}-\d{2}$/.test(v), "Data inválida.")
+    .transform((v) => (v === "" ? null : v));
+
+/** Pedido manual (Shopee, TikTok ou venda direta sem orçamento). */
+export const manualOrderSchema = z.object({
+  channelId: z.uuid("Escolha o canal."),
+  platformOrderNumber: optionalText(40),
+  customerId: optionalUuidText(),
+  dueDate: optionalIsoDate(),
+  shippingCost: decimal({ min: 0, max: 100_000 }),
+  notes: optionalText(2000),
+  items: z
+    .array(
+      z.object({
+        variantId: optionalUuidText(),
+        costSheetId: optionalUuidText(),
+        description: requiredText(200),
+        quantity: decimal({ int: true, min: 1, max: 10_000 }),
+        unitPrice: decimal({ min: 0, max: 1_000_000 }),
+      }),
+    )
+    .min(1, "Adicione pelo menos um item.")
+    .max(50, "No máximo 50 itens."),
+});
+export type ManualOrderInput = z.input<typeof manualOrderSchema>;
+
+export const markPaymentSchema = z.object({
+  orderId: z.uuid(),
+  kind: z.enum(["deposit", "balance", "full"]),
+  paidOn: isoDate("Informe a data do pagamento."),
+  method: z.enum(["pix", "cash", "card"], "Escolha a forma de pagamento."),
+});
+
+export const consumeSchema = z.object({
+  orderId: z.uuid(),
+  skip: z.boolean(),
+  lines: z
+    .array(z.object({ filamentId: z.uuid("Escolha o carretel."), grams: decimal({ min: 0, max: 10_000 }) }))
+    .max(30),
+});
+export type ConsumeInput = z.input<typeof consumeSchema>;
+
+export const failureSchema = z.object({
+  orderId: z.uuid(),
+  filamentId: optionalUuidText(),
+  grams: decimal({ min: 0, max: 10_000 }),
+  minutes: decimal({ int: true, min: 0, max: 10_000 }),
+  reason: optionalText(300),
+});
+export type FailureInput = z.input<typeof failureSchema>;
+
+export const orderDetailsSchema = z.object({
+  orderId: z.uuid(),
+  trackingCode: optionalText(60),
+  dueDate: optionalIsoDate(),
+  notes: optionalText(2000),
+});
+export type OrderDetailsInput = z.input<typeof orderDetailsSchema>;

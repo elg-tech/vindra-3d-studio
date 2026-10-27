@@ -5,10 +5,12 @@ import { notFound } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency, formatDate, formatPhone } from "@/lib/format";
+import { ORDER_STATUS_LABEL, type OrderStatus, type PaymentKind, paymentState } from "@/lib/orders";
 import { QUOTE_ROW_COLUMNS, summarizeQuoteRow } from "@/lib/quote-rows";
 import { whatsappLink } from "@/lib/quotes";
 import { createClient } from "@/lib/supabase/server";
 import { QuoteStatusBadge } from "../../orcamentos/quote-status-badge";
+import { PaymentBadge } from "../../pedidos/order-badges";
 import { CustomerDialog } from "../customer-dialog";
 import { ConfirmDeleteCustomer } from "./delete-customer";
 
@@ -26,9 +28,14 @@ export default async function ClientePage({ params }: { params: Promise<{ id: st
   const { id } = await params;
   if (!isUuid(id)) notFound();
   const supabase = await createClient();
-  const [{ data: c }, { data: quotes }] = await Promise.all([
+  const [{ data: c }, { data: quotes }, { data: orders }] = await Promise.all([
     supabase.from("customers").select("id, name, whatsapp, instagram, email, city, notes, created_at").eq("id", id).maybeSingle(),
     supabase.from("quotes").select(QUOTE_ROW_COLUMNS).eq("customer_id", id).order("created_at", { ascending: false }),
+    supabase
+      .from("orders")
+      .select("id, number, status, total_amount, created_at, paid_by_platform, order_payments(kind, amount, paid_on)")
+      .eq("customer_id", id)
+      .order("created_at", { ascending: false }),
   ]);
   if (!c) notFound();
 
@@ -112,6 +119,44 @@ export default async function ClientePage({ params }: { params: Promise<{ id: st
                       </span>
                       <QuoteStatusBadge status={r.status} />
                       <span className="w-24 text-right tabular-nums">{formatCurrency(r.total)}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-start-2">
+          <CardHeader>
+            <CardTitle>Pedidos</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {(orders ?? []).length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhum pedido para este cliente.</p>
+            ) : (
+              <ul className="divide-y">
+                {orders?.map((o) => (
+                  <li key={o.id}>
+                    <Link
+                      href={`/pedidos/${o.id}`}
+                      className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                    >
+                      <span className="min-w-0 flex-1">
+                        <span className="block font-medium tabular-nums">{o.number}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {formatDate(o.created_at)} · {ORDER_STATUS_LABEL[o.status as OrderStatus]}
+                        </span>
+                      </span>
+                      {o.status !== "cancelled" && (
+                        <PaymentBadge
+                          state={paymentState(
+                            o.order_payments.map((p) => ({ kind: p.kind as PaymentKind, amount: p.amount, paidOn: p.paid_on })),
+                            o.paid_by_platform,
+                          )}
+                        />
+                      )}
+                      <span className="w-24 text-right tabular-nums">{formatCurrency(o.total_amount)}</span>
                     </Link>
                   </li>
                 ))}

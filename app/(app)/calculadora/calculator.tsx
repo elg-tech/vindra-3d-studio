@@ -259,7 +259,7 @@ export function Calculator({
                                 <SelectLabel>Carretéis</SelectLabel>
                                 {visibleSpools(field.value).map((s) => (
                                   <SelectItem key={s.id} value={spoolSource(s.id)}>
-                                    <ColorDot hex={s.color_hex} />
+                                    <ColorDot hex={s.color_hex} className="mr-1.5 align-[-3px]" />
                                     {s.material} {s.color_name}
                                     {s.status === "empty" && " (acabou)"}
                                     <span className="text-muted-foreground tabular-nums">

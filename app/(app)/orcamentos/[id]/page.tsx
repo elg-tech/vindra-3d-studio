@@ -24,9 +24,10 @@ export default async function OrcamentoPage({ params }: { params: Promise<{ id: 
   const { id } = await params;
   if (!isUuid(id)) notFound();
   const supabase = await createClient();
-  const [data, { data: q }] = await Promise.all([
+  const [data, { data: q }, { data: order }] = await Promise.all([
     loadEditorData(supabase),
     supabase.from("quotes").select("*, quote_items(*)").eq("id", id).maybeSingle(),
+    supabase.from("orders").select("id, number").eq("quote_id", id).maybeSingle(),
   ]);
   if (!q) notFound();
 
@@ -50,6 +51,7 @@ export default async function OrcamentoPage({ params }: { params: Promise<{ id: 
           status: effectiveStatus(q.status as QuoteStatus, q.valid_until),
           approvedAt: q.approved_at,
           rejectedAt: q.rejected_at,
+          order: order ?? null,
         }}
         initialValues={{
           id: q.id,

@@ -20,7 +20,7 @@
 | 5 | Calculadora de custo e importação `.3mf` | ✅ concluída | `b8c4039`, ajustes em `627839a` |
 | 6 | Produtos e variações | ✅ concluída | `6dd5665`, `1317450`, `62c4aef` |
 | 7 | Clientes, orçamentos, página pública, PDF, Pix e WhatsApp | ✅ concluída | `cbc64fd` |
-| 8 | Pedidos (kanban) e baixa de filamento | próxima: plano em aprovação | |
+| 8 | Pedidos (kanban), pagamentos, baixa de filamento e falhas | pronta, aguardando conferência do Enzo para o push | `c43a95c` e o commit das telas |
 | 9 | Financeiro e dashboard | | |
 | 10 | Polimento e deploy | inclui medir o Lighthouse da página pública na Vercel | |
 
@@ -147,7 +147,7 @@ Existe um usuário só para testes locais, com `E2E_EMAIL` e `E2E_PASSWORD` no `
 - **Um formato só para o cliente** (`lib/quote-document.ts`): página pública, PDF e prévia do link partem dele.
   O painel monta o mesmo formato das tabelas (inclusive rascunho).
 
-### Pedidos (Fase 8, em andamento)
+### Pedidos (Fase 8)
 - **Número** `PED-AAAA-0001`. Um orçamento aprovado vira no máximo um pedido, que começa em "Aguardando pagamento".
 - **Pagamento em partes** (`order_payments`): com sinal no orçamento, dois pagamentos (sinal e restante); sem sinal,
   um só (total). Cada um tem valor, data (hoje por padrão, editável) e forma (Pix, dinheiro, cartão).
@@ -161,6 +161,12 @@ Existe um usuário só para testes locais, com `E2E_EMAIL` e `E2E_PASSWORD` no `
   falha nunca voltam.
 - **Fila de impressão**: soma os tempos de "Na fila" e "Imprimindo"; em "Imprimindo" desconta o tempo desde a entrada
   na coluna (`status_changed_at`), sem ficar negativo.
+- **Custo e tempo dos itens** vêm da ficha no banco ao criar o pedido (orçamento: o custo guardado nele; sem ele, o de
+  hoje). O custo da falha (filamento + máquina por hora da impressora padrão) é calculado no servidor.
+- **Falha real** na página de pedidos: custo das falhas ÷ custo de produção dos pedidos dos últimos 90 dias, ao lado da
+  margem de falha das Configurações (destaque quando passa dela).
+- **Arrastar sem divergência de hidratação**: o `DndContext` tem `id` fixo (o dnd-kit gera ids diferentes no servidor e
+  no navegador). `@dnd-kit/utilities` é dependência direta porque é importada.
 - **Prazo** em dias úteis (seg–sex, sem feriados). **Arrastar** com `@dnd-kit` no desktop; no celular, abas por
   coluna e "Mover para…".
 
