@@ -7,7 +7,7 @@
 > **Quando o prompt e este arquivo divergirem, vale este arquivo.** O prompt é o original;
 > as mudanças combinadas depois estão em "Onde o prompt ficou desatualizado" e em "Decisões".
 
-Última atualização: 27/10/2026 (Fase 8 concluída).
+Última atualização: 27/10/2026 (Fase 9 concluída).
 
 ## Fases
 
@@ -21,7 +21,7 @@
 | 6 | Produtos e variações | ✅ concluída | `6dd5665`, `1317450`, `62c4aef` |
 | 7 | Clientes, orçamentos, página pública, PDF, Pix e WhatsApp | ✅ concluída | `cbc64fd` |
 | 8 | Pedidos (kanban), pagamentos, baixa de filamento e falhas | ✅ concluída | `c43a95c`, `e11becc`, `f322f43`, `c99e144` |
-| 9 | Financeiro e dashboard | plano aprovado em `docs/PLANO-FASE-9.md`; implementação não começou | |
+| 9 | Financeiro e dashboard | ✅ concluída (plano em `docs/PLANO-FASE-9.md`) | `f18fac5` |
 | 10 | Polimento e deploy | inclui medir o Lighthouse da página pública na Vercel | |
 
 Antes de cada commit de fase: `npm run lint`, `npm run typecheck`, `npm test` e `npm run build` passando.
@@ -77,7 +77,9 @@ Por isso nenhum texto da interface afirma que o Bambu já inclui a purga:
 - aviso da importação: "Confira se a purga já está somada nas gramas e quantas peças cabem por mesa."
 
 ### Cores de canal
-Venda direta = verde da marca (`--chart-1`), Shopee = laranja (`--chart-2`), TikTok = violeta (`--chart-3`).
+Venda direta = verde da marca (`--chart-1`), Shopee = laranja (`--chart-2`), TikTok = violeta (`--chart-3`), outro canal = magenta
+(`--chart-4`), neutro = cinza (`--chart-5`). Valores refeitos na Fase 9 (o azul antigo e o violeta reprovavam no
+teste de daltonismo) e aprovados no validador da skill `dataviz` nos temas claro e escuro.
 Vermelho e âmbar não são cor de série: ficam só para prejuízo/atraso e alerta.
 Os tokens estão em `app/globals.css`.
 
@@ -185,8 +187,44 @@ Existe um usuário só para testes locais, com `E2E_EMAIL` e `E2E_PASSWORD` no `
 - **Prazo** em dias úteis (seg–sex, sem feriados). **Arrastar** com `@dnd-kit` no desktop; no celular, abas por
   coluna e "Mover para…".
 
+### Financeiro e dashboard (Fase 9)
+- **As 5 decisões do plano** (`docs/PLANO-FASE-9.md`) valem como escritas: receitas e carretéis montados na hora (sem
+  cópia em `transactions`, que guarda só lançamentos manuais); fluxo de caixa x DRE; pedido entra no DRE no mês em que
+  ficou totalmente pago (plataforma: mês de criação); cancelado depois de pago segue como receita até um "Estorno"
+  manual; custo dos produtos inclui a hora de trabalho.
+- **Mão de obra guardada no item** (`order_items.unit_labor_cost`): hora de trabalho do custo por peça, com o mesmo
+  acréscimo da margem de falha. Gravada ao criar o pedido (pela ficha de hoje, também nos pedidos de orçamento) e
+  preenchida pela migração nos pedidos antigos. É o que o "Lucro líquido sem a sua hora" soma de volta.
+- **Imposto no DRE sem contar duas vezes:** com alíquota nas Configurações, o imposto é estimado por ela e os
+  lançamentos "Impostos" ficam só no caixa; sem alíquota, a linha do imposto é a soma desses lançamentos.
+- **Frete no DRE:** linha "Frete repassado" (o frete cobrado nos pedidos sai, como no lucro do pedido da Fase 8).
+  A categoria manual "Frete" é para fretes fora dos pedidos (a dica do formulário avisa).
+- **Falhas** entram no DRE pelo mês em que aconteceram. **Cancelado sem peças impressas** (sem baixa) não tem custo de
+  produção no DRE.
+- **Ponto de equilíbrio:** despesas fixas do mês; se o mês ainda não tem nenhuma, usa as do mês anterior (avisado na
+  tela). Margem de contribuição = (receita − taxas − imposto − frete − custo dos produtos) ÷ receita dos pedidos pagos
+  nos últimos 90 dias. Margem ≤ 0 ou sem pedidos: não calcula e explica.
+- **KPIs:** "Custos" = tudo o que separa faturamento + outras receitas do lucro líquido; margem e aprovação comparam em
+  pontos percentuais; aprovação = aprovados ÷ orçamentos enviados no mês; horas de impressora = tempo dos pedidos
+  baixados no mês + tempo perdido em falhas; "Pedidos em andamento" e "Orçamentos pendentes" são do momento (sem
+  comparação). Top 5 produtos: pedidos pagos no mês, taxas e imposto rateados pelo valor do item, frete fora; item sem
+  custo fica de fora.
+- **Gráficos:** só o de 12 meses usa Recharts (faturamento em cinza, lucro em verde, prejuízo em vermelho, tooltip e
+  tabela para leitor de tela). Canais, produtos e filamento são barras em HTML com rótulo e valor escritos; no
+  filamento a cor real vai numa bolinha e a barra fica neutra.
+- **CSV** com BOM, ";" e vírgula decimal, valor líquido negativo nas despesas (soma direto no Excel).
+- **Lançamento manual** só no Financeiro; pagamentos e carretéis se corrigem na origem. Checks no banco: categoria
+  conforme o tipo, valor > 0, só despesa pode ser fixa.
+- **Resumo de margem dos produtos** saiu da página para `loadProductSummaries` (`lib/product-loaders.ts`), usado por
+  `/produtos` e pelos alertas do dashboard.
+- **Migrações:** o `supabase db push` é bloqueado no modo automático do Claude Code; o Enzo aplica pelo terminal
+  (`npm run db:push`) e depois o Claude regenera os tipos.
+
 ## Pendências
 
+- [ ] **Conferir o financeiro com pedidos reais.** A conta de teste não tinha pedidos pagos na conferência da
+  Fase 9: DRE, gráficos, top 5 e "A receber" com pedidos foram cobertos só pelos testes unitários. Conferir com o
+  primeiro mês de vendas (sinal e restante em meses diferentes, um pedido Shopee, uma falha).
 - [ ] **Lighthouse da página pública** (meta > 90): medir na Vercel, na Fase 10.
 
 - [ ] **`.3mf` fatiado real.** O único `.3mf` real testado era um projeto **sem fatiar** (sem tempo nem gramas).
@@ -197,5 +235,3 @@ Existe um usuário só para testes locais, com `E2E_EMAIL` e `E2E_PASSWORD` no `
   era de uma A1 mini. Confirmar qual impressora é usada (ou se são as duas) e ajustar o cadastro.
 - [ ] **Foto por variação.** O banco já tem `product_variants.image_path`, mas a tela só tem a foto do produto.
   Acrescentar o envio por variação (mesmo fluxo da foto do produto) e usar no orçamento quando houver.
-- [ ] Revisar a paleta de canais nos gráficos: azul e violeta lado a lado reprovam no validador de
-  daltonismo (Fase 9).
