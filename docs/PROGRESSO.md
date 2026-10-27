@@ -7,7 +7,7 @@
 > **Quando o prompt e este arquivo divergirem, vale este arquivo.** O prompt é o original;
 > as mudanças combinadas depois estão em "Onde o prompt ficou desatualizado" e em "Decisões".
 
-Última atualização: 26/10/2026 (Fase 6 concluída).
+Última atualização: 27/10/2026 (Fase 7 concluída).
 
 ## Fases
 
@@ -19,10 +19,10 @@
 | 4 | Configurações, impressoras, filamentos e insumos | ✅ concluída | `95a3483` |
 | 5 | Calculadora de custo e importação `.3mf` | ✅ concluída | `b8c4039`, ajustes em `627839a` |
 | 6 | Produtos e variações | ✅ concluída | `6dd5665`, `1317450`, `62c4aef` |
-| 7 | Clientes, orçamentos, página pública e PDF | implementada; aguardando o Enzo testar o Pix no app do banco antes do commit | |
-| 8 | Pedidos (kanban) e baixa de filamento | | |
+| 7 | Clientes, orçamentos, página pública, PDF, Pix e WhatsApp | ✅ concluída | `cbc64fd` |
+| 8 | Pedidos (kanban) e baixa de filamento | próxima: plano em aprovação | |
 | 9 | Financeiro e dashboard | | |
-| 10 | Polimento e deploy | | |
+| 10 | Polimento e deploy | inclui medir o Lighthouse da página pública na Vercel | |
 
 Antes de cada commit de fase: `npm run lint`, `npm run typecheck`, `npm test` e `npm run build` passando.
 O push vem depois que o Enzo confere no navegador.
@@ -136,6 +136,8 @@ Existe um usuário só para testes locais, com `E2E_EMAIL` e `E2E_PASSWORD` no `
 - **Pix**: além de copiar a chave, Pix copia e cola estático com valor (BR Code/EMV com CRC16) e QR Code,
   também no PDF. Valor = sinal (`quotes.deposit_pct`) se houver, senão o total. O tipo da chave fica nas
   Configurações (`settings.pix_key_type`): 11 dígitos podem ser CPF ou telefone, e telefone vai como `+55…`.
+- **Pix testado pelo Enzo com o app do banco** (27/10/2026): QR da página, copia e cola e QR do PDF aceitos,
+  valor do sinal certo, titular correto. Testes automáticos reproduzem o exemplo oficial do manual do BCB.
 - **PDF** em Helvetica (embutida nos leitores), testado com acentos; sem símbolos fora dela (→, …, emoji):
   `pdfText` (`lib/pdf-text.ts`) troca ou remove. Separação de sílabas desligada (o react-pdf inseria "-" ao
   quebrar palavras, inclusive no Pix copia e cola); o código Pix sai em linhas de tamanho fixo.
@@ -147,9 +149,7 @@ Existe um usuário só para testes locais, com `E2E_EMAIL` e `E2E_PASSWORD` no `
 
 ## Pendências
 
-- [ ] **Testar o Pix com o app do banco** (QR e copia e cola, com a chave real) antes do commit da Fase 7.
-- [ ] **Medir o Lighthouse da página pública** (meta > 90). O `npx -y lighthouse@13.5.0` foi bloqueado pelas
-  permissões do Claude Code; precisa de liberação ou rodar à mão.
+- [ ] **Lighthouse da página pública** (meta > 90): medir na Vercel, na Fase 10.
 
 - [ ] **`.3mf` fatiado real.** O único `.3mf` real testado era um projeto **sem fatiar** (sem tempo nem gramas).
   Fatiar uma mesa multicor, exportar com *Arquivo → Exportar → Exportar arquivo de mesa fatiada*
