@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { FILAMENT_STATUS, MATERIALS } from "@/lib/filaments";
+import { PIX_KEY_TYPES, normalizePixKey } from "@/lib/pix";
 import { MODEL_SOURCES } from "@/lib/products";
+import { whatsappNumber } from "@/lib/quotes";
 import {
   decimal,
   optionalDecimal,
@@ -30,20 +32,36 @@ export const costSettingsSchema = z
     message: "A margem mínima não pode ser maior que a margem padrão.",
   });
 
-export const storeSettingsSchema = z.object({
-  store_name: requiredText(80),
-  store_whatsapp: optionalText(20).refine((v) => v === null || /^\+?[\d\s()-]{10,20}$/.test(v), {
-    message: "WhatsApp inválido. Ex.: (16) 99999-9999",
-  }),
-  store_instagram: optionalText(60),
-  store_email: optionalText(120).refine((v) => v === null || z.email().safeParse(v).success, {
-    message: "E-mail inválido.",
-  }),
-  store_city: optionalText(80),
-  pix_key: optionalText(120),
-  default_quote_terms: optionalText(2000),
-  quote_validity_days: decimal({ int: true, min: 1, max: 365 }),
-});
+export const storeSettingsSchema = z
+  .object({
+    store_name: requiredText(80),
+    store_whatsapp: optionalText(20).refine((v) => v === null || /^\+?[\d\s()-]{10,20}$/.test(v), {
+      message: "WhatsApp inválido. Ex.: (16) 99999-9999",
+    }),
+    store_instagram: optionalText(60),
+    store_email: optionalText(120).refine((v) => v === null || z.email().safeParse(v).success, {
+      message: "E-mail inválido.",
+    }),
+    store_city: optionalText(80),
+    pix_key: optionalText(120),
+    pix_key_type: z.enum([...PIX_KEY_TYPES, ""]).transform((v) => (v === "" ? null : v)),
+    default_quote_terms: optionalText(2000),
+    quote_validity_days: decimal({ int: true, min: 1, max: 365 }),
+  })
+  // a chave é guardada no formato do BR Code (ex.: celular "+5516999999999")
+  .transform((s, ctx) => {
+    if (!s.pix_key) return { ...s, pix_key_type: null };
+    if (!s.pix_key_type) {
+      ctx.addIssue({ code: "custom", path: ["pix_key_type"], message: "Escolha o tipo da chave." });
+      return z.NEVER;
+    }
+    const key = normalizePixKey(s.pix_key, s.pix_key_type);
+    if (!key.ok) {
+      ctx.addIssue({ code: "custom", path: ["pix_key"], message: key.error });
+      return z.NEVER;
+    }
+    return { ...s, pix_key: key.key };
+  });
 
 export const channelSchema = z.object({
   id: z.uuid(),
@@ -266,3 +284,83 @@ export const sheetToProductSchema = z.discriminatedUnion("mode", [
 ]);
 
 export type SheetToProductInput = z.input<typeof sheetToProductSchema>;
+
+// ---------------------------------------------------------------
+// Clientes
+// ---------------------------------------------------------------
+/** WhatsApp com DDD, guardado só com dígitos (sem o 55). */
+const optionalWhatsapp = () =>
+  optionalText(20).transform((v, ctx) => {
+    if (v === null) return null;
+    const number = whatsappNumber(v);
+    if (!number) {
+      ctx.addIssue({ code: "custom", message: "Use DDD + número. Ex.: (16) 99999-9999" });
+      return z.NEVER;
+    }
+    return number.slice(2);
+  });
+
+export const customerSchema = z.object({
+  id: z.uuid().optional(),
+  name: requiredText(120),
+  whatsapp: optionalWhatsapp(),
+  instagram: optionalText(60).transform((v) => (v ? v.replace(/^@/, "") : v)),
+  email: optionalText(120).refine((v) => v === null || z.email().safeParse(v).success, { message: "E-mail inválido." }),
+  city: optionalText(80),
+  notes: optionalText(1000),
+});
+
+export type CustomerInput = z.input<typeof customerSchema>;
+
+// ---------------------------------------------------------------
+// Orçamentos (campos de texto, como no formulário)
+// ---------------------------------------------------------------
+const optionalUuidText = () =>
+  z
+    .string()
+    .trim()
+    .transform((v) => (v === "" ? null : v))
+    .pipe(z.uuid("Registro inválido.").nullable());
+
+export const quoteSchema = z
+  .object({
+    id: z.uuid().optional(),
+    customerMode: z.enum(["existing", "new", "none"]),
+    customerId: optionalUuidText(),
+    newCustomerName: optionalText(120),
+    newCustomerWhatsapp: optionalWhatsapp(),
+    discountType: z.enum(["amount", "percent"]),
+    discountValue: decimal({ min: 0, max: 1_000_000 }),
+    shippingCost: decimal({ min: 0, max: 100_000 }),
+    productionDays: optionalDecimal({ int: true, min: 0, max: 365 }),
+    validUntil: z
+      .string()
+      .trim()
+      .refine((v) => v === "" || /^\d{4}-\d{2}-\d{2}$/.test(v), "Data inválida.")
+      .transform((v) => (v === "" ? null : v)),
+    depositPct: optionalDecimal({ min: 1, max: 100 }),
+    paymentTerms: optionalText(1000),
+    notes: optionalText(2000),
+    items: z
+      .array(
+        z.object({
+          variantId: optionalUuidText(),
+          costSheetId: optionalUuidText(),
+          description: requiredText(200),
+          quantity: decimal({ int: true, min: 1, max: 10_000 }),
+          unitPrice: decimal({ min: 0, max: 1_000_000 }),
+        }),
+      )
+      .min(1, "Adicione pelo menos um item.")
+      .max(50, "No máximo 50 itens."),
+  })
+  .superRefine((q, ctx) => {
+    if (q.customerMode === "existing" && !q.customerId)
+      ctx.addIssue({ code: "custom", path: ["customerId"], message: "Escolha o cliente." });
+    if (q.customerMode === "new" && !q.newCustomerName)
+      ctx.addIssue({ code: "custom", path: ["newCustomerName"], message: "Informe o nome do cliente." });
+    if (q.discountType === "percent" && q.discountValue > 100)
+      ctx.addIssue({ code: "custom", path: ["discountValue"], message: "Máximo 100%." });
+  });
+
+export type QuoteInput = z.input<typeof quoteSchema>;

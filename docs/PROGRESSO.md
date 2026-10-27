@@ -19,13 +19,15 @@
 | 4 | Configurações, impressoras, filamentos e insumos | ✅ concluída | `95a3483` |
 | 5 | Calculadora de custo e importação `.3mf` | ✅ concluída | `b8c4039`, ajustes em `627839a` |
 | 6 | Produtos e variações | ✅ concluída | `6dd5665`, `1317450`, `62c4aef` |
-| 7 | Clientes, orçamentos, página pública e PDF | próxima: plano em aprovação | |
+| 7 | Clientes, orçamentos, página pública e PDF | implementada; aguardando o Enzo testar o Pix no app do banco antes do commit | |
 | 8 | Pedidos (kanban) e baixa de filamento | | |
 | 9 | Financeiro e dashboard | | |
 | 10 | Polimento e deploy | | |
 
 Antes de cada commit de fase: `npm run lint`, `npm run typecheck`, `npm test` e `npm run build` passando.
 O push vem depois que o Enzo confere no navegador.
+No Windows, rode os testes a partir de `C:\dev\vindra` (C maiúsculo): com o terminal em `c:\dev\vindra` o Vitest
+não encontra os arquivos e mostra "no tests" (é o ambiente, não o código).
 
 ## Onde o prompt ficou desatualizado
 
@@ -120,7 +122,34 @@ Existe um usuário só para testes locais, com `E2E_EMAIL` e `E2E_PASSWORD` no `
 - **`save_product`** grava produto, variações e preços numa transação. Variações são atualizadas no lugar
   (orçamentos e pedidos apontam para elas); só as removidas da lista são apagadas.
 
+### Orçamentos e clientes (Fase 7)
+- **Preço padrão de item do catálogo**: preço da variação no canal "Venda direta"; vazio → sugerido desse canal.
+- **Aprovado ou recusado fica travado** para edição; "Duplicar" cria um rascunho novo. Enviado pode ser editado
+  (mesmo link; a página mostra "atualizado em").
+- **Aprovação com versão**: cada edição do conteúdo incrementa `quotes.revision`. A página pública envia a
+  revisão que carregou; se mudou, `approve_public_quote` recusa com `quote_outdated` e a página pede para
+  recarregar.
+- **A página pública não muda nada ao ser aberta** (o WhatsApp abre o link para gerar a prévia). Aprovar só por
+  clique no botão (Server Action/RPC), nunca em GET.
+- **"Converter em pedido"** fica para a Fase 8. Até lá, o cliente mostra "Total em orçamentos aprovados".
+- **Sem "Recusar" na página pública**: só o dono recusa, pelo painel.
+- **Pix**: além de copiar a chave, Pix copia e cola estático com valor (BR Code/EMV com CRC16) e QR Code,
+  também no PDF. Valor = sinal (`quotes.deposit_pct`) se houver, senão o total. O tipo da chave fica nas
+  Configurações (`settings.pix_key_type`): 11 dígitos podem ser CPF ou telefone, e telefone vai como `+55…`.
+- **PDF** em Helvetica (embutida nos leitores), testado com acentos; sem símbolos fora dela (→, …, emoji):
+  `pdfText` (`lib/pdf-text.ts`) troca ou remove. Separação de sílabas desligada (o react-pdf inseria "-" ao
+  quebrar palavras, inclusive no Pix copia e cola); o código Pix sai em linhas de tamanho fixo.
+- **Custo do item do orçamento** é calculado no servidor ao salvar (ficha da variação ou a ficha escolhida),
+  com a mesma regra da calculadora. Fica guardado em `quote_items.unit_cost`: é o custo da época do orçamento.
+  O lucro do painel usa as taxas do canal "Venda direta" e o imposto; o frete só passa pelo caixa.
+- **Um formato só para o cliente** (`lib/quote-document.ts`): página pública, PDF e prévia do link partem dele.
+  O painel monta o mesmo formato das tabelas (inclusive rascunho).
+
 ## Pendências
+
+- [ ] **Testar o Pix com o app do banco** (QR e copia e cola, com a chave real) antes do commit da Fase 7.
+- [ ] **Medir o Lighthouse da página pública** (meta > 90). O `npx -y lighthouse@13.5.0` foi bloqueado pelas
+  permissões do Claude Code; precisa de liberação ou rodar à mão.
 
 - [ ] **`.3mf` fatiado real.** O único `.3mf` real testado era um projeto **sem fatiar** (sem tempo nem gramas).
   Fatiar uma mesa multicor, exportar com *Arquivo → Exportar → Exportar arquivo de mesa fatiada*

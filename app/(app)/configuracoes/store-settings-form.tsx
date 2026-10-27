@@ -1,9 +1,12 @@
 "use client";
 
-import { TextAreaField, TextField } from "@/components/form/field";
+import { Controller } from "react-hook-form";
+import { FieldShell, TextAreaField, TextField } from "@/components/form/field";
 import { SubmitButton } from "@/components/form/submit-button";
 import { useActionForm } from "@/components/form/use-action-form";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PIX_KEY_TYPES, PIX_KEY_TYPE_LABEL, type PixKeyType } from "@/lib/pix";
 import type { Tables } from "@/lib/supabase/database.types";
 import { toField } from "@/lib/validation/fields";
 import { storeSettingsSchema } from "@/lib/validation/schemas";
@@ -20,11 +23,12 @@ export function StoreSettingsForm({ settings }: { settings: Tables<"settings"> }
       store_email: settings.store_email ?? "",
       store_city: settings.store_city ?? "",
       pix_key: settings.pix_key ?? "",
+      pix_key_type: (settings.pix_key_type as PixKeyType | null) ?? "",
       default_quote_terms: settings.default_quote_terms ?? "",
       quote_validity_days: toField(settings.quote_validity_days),
     },
   });
-  const { register, formState } = form;
+  const { register, control, formState } = form;
   const e = formState.errors;
 
   return (
@@ -59,11 +63,33 @@ export function StoreSettingsForm({ settings }: { settings: Tables<"settings"> }
             type="email"
             inputMode="email"
           />
+          <FieldShell label="Tipo da chave Pix" error={e.pix_key_type}>
+            {({ id, describedBy, invalid }) => (
+              <Controller
+                control={control}
+                name="pix_key_type"
+                render={({ field }) => (
+                  <Select value={field.value || undefined} onValueChange={field.onChange}>
+                    <SelectTrigger id={id} aria-describedby={describedBy} aria-invalid={invalid} className="w-full">
+                      <SelectValue placeholder="Escolha o tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PIX_KEY_TYPES.map((t) => (
+                        <SelectItem key={t} value={t}>
+                          {PIX_KEY_TYPE_LABEL[t]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            )}
+          </FieldShell>
           <TextField
             label="Chave Pix"
             registration={register("pix_key")}
             error={e.pix_key}
-            hint="O cliente copia direto da página do orçamento."
+            hint="Gera o Pix copia e cola e o QR Code com o valor do orçamento (ou do sinal)."
           />
           <TextField
             label="Validade padrão do orçamento"

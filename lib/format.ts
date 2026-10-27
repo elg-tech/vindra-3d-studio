@@ -47,3 +47,10 @@ export function formatUnitCost(value: number): string {
 export function formatGrams(value: number): string {
   return `${formatNumber(value)} g`;
 }
+
+/** Telefone guardado só com dígitos: "16999999999" → "(16) 99999-9999". */
+export function formatPhone(digits: string | null): string | null {
+  if (!digits) return null;
+  const m = digits.match(/^(\d{2})(\d{4,5})(\d{4})$/);
+  return m ? `(${m[1]}) ${m[2]}-${m[3]}` : digits;
+}

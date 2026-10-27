@@ -846,6 +846,7 @@ export type Database = {
           approved_at: string | null
           created_at: string
           customer_id: string | null
+          deposit_pct: number | null
           discount_type: string
           discount_value: number
           id: string
@@ -855,6 +856,8 @@ export type Database = {
           payment_terms: string | null
           production_days: number | null
           rejected_at: string | null
+          revised_at: string | null
+          revision: number
           sent_at: string | null
           shipping_cost: number
           status: string
@@ -866,6 +869,7 @@ export type Database = {
           approved_at?: string | null
           created_at?: string
           customer_id?: string | null
+          deposit_pct?: number | null
           discount_type?: string
           discount_value?: number
           id?: string
@@ -875,6 +879,8 @@ export type Database = {
           payment_terms?: string | null
           production_days?: number | null
           rejected_at?: string | null
+          revised_at?: string | null
+          revision?: number
           sent_at?: string | null
           shipping_cost?: number
           status?: string
@@ -886,6 +892,7 @@ export type Database = {
           approved_at?: string | null
           created_at?: string
           customer_id?: string | null
+          deposit_pct?: number | null
           discount_type?: string
           discount_value?: number
           id?: string
@@ -895,6 +902,8 @@ export type Database = {
           payment_terms?: string | null
           production_days?: number | null
           rejected_at?: string | null
+          revised_at?: string | null
+          revision?: number
           sent_at?: string | null
           shipping_cost?: number
           status?: string
@@ -966,6 +975,7 @@ export type Database = {
           min_margin_pct: number
           owner_id: string
           pix_key: string | null
+          pix_key_type: string | null
           quote_validity_days: number
           rounding_rule: string
           store_city: string | null
@@ -987,6 +997,7 @@ export type Database = {
           min_margin_pct?: number
           owner_id?: string
           pix_key?: string | null
+          pix_key_type?: string | null
           quote_validity_days?: number
           rounding_rule?: string
           store_city?: string | null
@@ -1008,6 +1019,7 @@ export type Database = {
           min_margin_pct?: number
           owner_id?: string
           pix_key?: string | null
+          pix_key_type?: string | null
           quote_validity_days?: number
           rounding_rule?: string
           store_city?: string | null
@@ -1172,13 +1184,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      approve_public_quote: { Args: { p_token: string }; Returns: undefined }
+      approve_public_quote: {
+        Args: { p_revision: number; p_token: string }
+        Returns: undefined
+      }
       get_public_quote: { Args: { p_token: string }; Returns: Json }
       save_cost_sheet: {
         Args: { p_sheet: Json; p_unit_cost: number }
         Returns: string
       }
       save_product: { Args: { p_product: Json }; Returns: string }
+      save_quote: { Args: { p_quote: Json }; Returns: string }
     }
     Enums: {
       [_ in never]: never

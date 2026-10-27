@@ -7,4 +7,7 @@ O prompt é o original e ficou desatualizado em alguns pontos. **Quando o prompt
 divergirem, vale o `PROGRESSO.md`** (ex.: pasta `c:\dev\vindra`, preparo por lote x pós por peça,
 página pública via função `security definer`).
 
+Siga também o `AGENTS.md` (gerado pelo `next dev`): o Next.js 16 mudou APIs e convenções; consulte
+`node_modules/next/dist/docs/` antes de escrever código do Next.
+
 No fim de cada fase, atualize `docs/PROGRESSO.md` com o hash do commit, as decisões novas e as pendências.
