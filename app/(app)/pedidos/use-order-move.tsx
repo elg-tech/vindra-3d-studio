@@ -22,7 +22,11 @@ type Pending = { order: MovableOrder; target: BoardStatus; columnOrder: string[]
  * Mover um pedido de coluna. Entrar em produção sem baixa abre a confirmação de baixa antes;
  * pagamento pendente gera aviso, sem bloquear.
  */
-export function useOrderMove(spools: SpoolOption[], onMoved?: (orderId: string, target: BoardStatus) => void) {
+export function useOrderMove(
+  spools: SpoolOption[],
+  /** O movimento não aconteceu (baixa cancelada ou erro): o quadro volta ao estado real. */
+  onReset?: () => void,
+) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [pending, setPending] = useState<Pending | null>(null);
@@ -32,12 +36,12 @@ export function useOrderMove(spools: SpoolOption[], onMoved?: (orderId: string, 
       const result = await moveOrder(order.id, target, columnOrder);
       if (!result.ok) {
         toast.error(result.error);
+        onReset?.();
         router.refresh();
         return;
       }
       const warning = moveWarning(target, order.paymentState);
       if (warning) toast.warning(`${order.number} em “${ORDER_STATUS_LABEL[target]}”. ${warning}`);
-      onMoved?.(order.id, target);
       router.refresh();
     });
   }
@@ -57,7 +61,7 @@ export function useOrderMove(spools: SpoolOption[], onMoved?: (orderId: string, 
       onOpenChange={(open) => {
         if (!open) {
           setPending(null);
-          router.refresh(); // desfaz o arraste otimista se a baixa foi cancelada
+          onReset?.(); // desfaz o arraste otimista: a baixa foi cancelada
         }
       }}
       orderId={pending.order.id}
@@ -66,6 +70,7 @@ export function useOrderMove(spools: SpoolOption[], onMoved?: (orderId: string, 
       spools={spools}
       onDone={() => {
         const p = pending;
+        // fecha pelo estado (sem onOpenChange): só cancelar desfaz o arraste
         setPending(null);
         commit({ ...p, order: { ...p.order, consumed: true } });
       }}

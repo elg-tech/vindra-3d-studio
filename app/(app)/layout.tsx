@@ -14,7 +14,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar />
-        <main className="mx-auto w-full max-w-6xl flex-1 px-4 pt-6 pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:px-6 md:pb-10">
+        {/* páginas largas (quadro de pedidos) marcam data-page-wide e usam a tela toda */}
+        <main className="mx-auto w-full max-w-6xl flex-1 has-[[data-page-wide]]:max-w-none px-4 pt-6 pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:px-6 md:pb-10">
           {children}
         </main>
       </div>

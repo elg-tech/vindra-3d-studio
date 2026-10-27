@@ -9,6 +9,7 @@ import {
   itemPrintMinutes,
   machineCostPerHour,
   moveWarning,
+  nextStatus,
   orderProfit,
   paymentState,
   plannedPayments,
@@ -196,5 +197,14 @@ describe("dueState", () => {
     expect(dueState("2026-10-30", "queued", now)).toBe("ok");
     expect(dueState("2026-10-26", "shipped", now)).toBeNull();
     expect(dueState(null, "queued", now)).toBeNull();
+  });
+});
+
+describe("nextStatus", () => {
+  it("segue a ordem do quadro e para na última coluna", () => {
+    expect(nextStatus("awaiting_payment")).toBe("queued");
+    expect(nextStatus("ready")).toBe("shipped");
+    expect(nextStatus("delivered")).toBeNull();
+    expect(nextStatus("cancelled")).toBeNull();
   });
 });

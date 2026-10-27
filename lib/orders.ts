@@ -223,3 +223,9 @@ export function formatMinutes(minutes: number): string {
   const m = Math.round(minutes);
   return m >= 60 ? `${Math.floor(m / 60)}h${m % 60 ? String(m % 60).padStart(2, "0") : ""}` : `${m} min`;
 }
+
+/** Próxima etapa do quadro ("Avançar →"); null na última. */
+export function nextStatus(status: OrderStatus): BoardStatus | null {
+  const index = (BOARD_STATUSES as readonly string[]).indexOf(status);
+  return index >= 0 && index < BOARD_STATUSES.length - 1 ? BOARD_STATUSES[index + 1] : null;
+}

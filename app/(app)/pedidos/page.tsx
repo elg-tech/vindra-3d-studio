@@ -29,7 +29,7 @@ export default async function PedidosPage() {
   );
 
   return (
-    <div className="grid gap-6">
+    <div data-page-wide className="grid gap-6">
       <PageHeader title="Pedidos" description="Produção, pagamentos e entregas." actions={newButton} />
 
       {orders.length === 0 ? (
@@ -73,8 +73,7 @@ export default async function PedidosPage() {
               </div>
             )}
           </div>
-          {/* key: depois de cada mudança o servidor manda o quadro novo */}
-          <OrderBoard key={orders.map((o) => `${o.id}:${o.status}:${o.boardPosition}:${o.paymentState}:${o.consumed}`).join("|")} orders={orders} spools={spools} />
+          <OrderBoard orders={orders} spools={spools} />
         </>
       )}
     </div>

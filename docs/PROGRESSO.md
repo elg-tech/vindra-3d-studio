@@ -167,6 +167,14 @@ Existe um usuário só para testes locais, com `E2E_EMAIL` e `E2E_PASSWORD` no `
   margem de falha das Configurações (destaque quando passa dela).
 - **Arrastar sem divergência de hidratação**: o `DndContext` tem `id` fixo (o dnd-kit gera ids diferentes no servidor e
   no navegador). `@dnd-kit/utilities` é dependência direta porque é importada.
+- **Quadro no desktop** (ajustes de 27/10/2026): a partir de 1280px as 7 colunas dividem a largura da tela em partes
+  iguais, sem rolagem (a página de pedidos usa a tela toda: `data-page-wide` libera o `max-w-6xl` do layout). Entre
+  768 e 1280px continua rolando, com rolagem automática mais rápida ao arrastar perto da borda. Cards compactos:
+  número, cliente, selo de pagamento, prazo, total, "Avançar →" (próxima etapa, com os mesmos avisos e a baixa) e
+  "Mover para…".
+- **O quadro não é recriado ao mover** (a `key` que o recriava fazia a rolagem voltar ao começo): só as colunas são
+  atualizadas. Baixa cancelada ou erro devolvem o card à coluna real. Arrastar pelo teclado só com o foco no card,
+  para Enter/Espaço continuarem funcionando nos botões.
 - **Prazo** em dias úteis (seg–sex, sem feriados). **Arrastar** com `@dnd-kit` no desktop; no celular, abas por
   coluna e "Mover para…".
 

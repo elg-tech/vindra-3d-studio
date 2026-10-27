@@ -76,7 +76,7 @@ export function ConsumeDialog({
         return;
       }
       toast.success(result.message);
-      onOpenChange(false);
+      // onDone antes de fechar: fechar sem concluir desfaz o arraste
       onDone();
     });
   }
