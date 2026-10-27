@@ -147,6 +147,23 @@ Existe um usuário só para testes locais, com `E2E_EMAIL` e `E2E_PASSWORD` no `
 - **Um formato só para o cliente** (`lib/quote-document.ts`): página pública, PDF e prévia do link partem dele.
   O painel monta o mesmo formato das tabelas (inclusive rascunho).
 
+### Pedidos (Fase 8, em andamento)
+- **Número** `PED-AAAA-0001`. Um orçamento aprovado vira no máximo um pedido, que começa em "Aguardando pagamento".
+- **Pagamento em partes** (`order_payments`): com sinal no orçamento, dois pagamentos (sinal e restante); sem sinal,
+  um só (total). Cada um tem valor, data (hoje por padrão, editável) e forma (Pix, dinheiro, cartão).
+  Selos: "Aguardando sinal" / "Aguardando pagamento", "Sinal pago", "Pago". Cada pagamento vira receita na Fase 9,
+  com a data real. Aviso (não bloqueio) ao mover para "Imprimindo" sem sinal e para "Enviado"/"Entregue" sem o restante.
+- **Pedido manual Shopee/TikTok** começa em "Na fila", já pago pela plataforma (selo "Pago na plataforma"), sem
+  sinal/restante. Taxas do canal guardadas no pedido com os valores da venda.
+- **Baixa de filamento** ao entrar em "Imprimindo" (ou direto em "Pronto"): confirma carretel e gramas reais por
+  linha. "Mover sem baixar" marca o pedido como sem baixa. Baixa dupla é recusada no banco (`consumed_at`).
+- **Cancelar** pergunta "As peças chegaram a ser impressas?": só devolve o filamento ao carretel se não. Perdas por
+  falha nunca voltam.
+- **Fila de impressão**: soma os tempos de "Na fila" e "Imprimindo"; em "Imprimindo" desconta o tempo desde a entrada
+  na coluna (`status_changed_at`), sem ficar negativo.
+- **Prazo** em dias úteis (seg–sex, sem feriados). **Arrastar** com `@dnd-kit` no desktop; no celular, abas por
+  coluna e "Mover para…".
+
 ## Pendências
 
 - [ ] **Lighthouse da página pública** (meta > 90): medir na Vercel, na Fase 10.

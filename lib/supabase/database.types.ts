@@ -482,23 +482,72 @@ export type Database = {
           },
         ]
       }
+      order_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          kind: string
+          method: string | null
+          order_id: string
+          owner_id: string
+          paid_on: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          kind: string
+          method?: string | null
+          order_id: string
+          owner_id?: string
+          paid_on?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          kind?: string
+          method?: string | null
+          order_id?: string
+          owner_id?: string
+          paid_on?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_payments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orders: {
         Row: {
           board_position: number
           channel_fees: number
           channel_id: string | null
+          consumed_at: string | null
           created_at: string
           customer_id: string | null
           discount_amount: number
           due_date: string | null
+          filament_skipped: boolean
           id: string
           notes: string | null
+          number: string
           owner_id: string
           paid_at: string | null
+          paid_by_platform: boolean
           platform_order_number: string | null
           quote_id: string | null
           shipping_cost: number
           status: string
+          status_changed_at: string
           total_amount: number
           tracking_code: string | null
           updated_at: string
@@ -507,18 +556,23 @@ export type Database = {
           board_position?: number
           channel_fees?: number
           channel_id?: string | null
+          consumed_at?: string | null
           created_at?: string
           customer_id?: string | null
           discount_amount?: number
           due_date?: string | null
+          filament_skipped?: boolean
           id?: string
           notes?: string | null
+          number?: string
           owner_id?: string
           paid_at?: string | null
+          paid_by_platform?: boolean
           platform_order_number?: string | null
           quote_id?: string | null
           shipping_cost?: number
           status?: string
+          status_changed_at?: string
           total_amount?: number
           tracking_code?: string | null
           updated_at?: string
@@ -527,18 +581,23 @@ export type Database = {
           board_position?: number
           channel_fees?: number
           channel_id?: string | null
+          consumed_at?: string | null
           created_at?: string
           customer_id?: string | null
           discount_amount?: number
           due_date?: string | null
+          filament_skipped?: boolean
           id?: string
           notes?: string | null
+          number?: string
           owner_id?: string
           paid_at?: string | null
+          paid_by_platform?: boolean
           platform_order_number?: string | null
           quote_id?: string | null
           shipping_cost?: number
           status?: string
+          status_changed_at?: string
           total_amount?: number
           tracking_code?: string | null
           updated_at?: string
@@ -1188,7 +1247,20 @@ export type Database = {
         Args: { p_revision: number; p_token: string }
         Returns: undefined
       }
+      cancel_order: {
+        Args: { p_order_id: string; p_printed: boolean }
+        Returns: undefined
+      }
+      consume_order_filament: {
+        Args: { p_lines: Json; p_order_id: string; p_skip?: boolean }
+        Returns: undefined
+      }
+      create_order: { Args: { p_order: Json }; Returns: string }
       get_public_quote: { Args: { p_token: string }; Returns: Json }
+      record_print_failure: {
+        Args: { p_failure: Json; p_order_id: string }
+        Returns: string
+      }
       save_cost_sheet: {
         Args: { p_sheet: Json; p_unit_cost: number }
         Returns: string
