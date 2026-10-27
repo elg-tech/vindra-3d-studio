@@ -13,7 +13,8 @@ const PAYMENT_TONE: Record<PaymentState, string> = {
 
 export function PaymentBadge({ state, className }: { state: PaymentState; className?: string }) {
   return (
-    <Badge variant="outline" className={cn(PAYMENT_TONE[state], className)}>
+    // title: em coluna estreita o selo é cortado com "…"; o texto completo aparece ao passar o mouse
+    <Badge variant="outline" title={PAYMENT_STATE_LABEL[state]} className={cn(PAYMENT_TONE[state], className)}>
       {PAYMENT_STATE_LABEL[state]}
     </Badge>
   );

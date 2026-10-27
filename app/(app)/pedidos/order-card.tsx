@@ -37,15 +37,17 @@ export function OrderCard({
     <article
       aria-label={`Pedido ${order.number}`}
       className={cn(
-        // coluna única que pode encolher: o conteúdo não alarga o card além da coluna
-        "grid min-w-0 grid-cols-[minmax(0,1fr)] gap-1.5 rounded-lg border bg-card p-2.5 text-sm xl:p-2 shadow-xs transition-shadow",
+        // coluna única que pode encolher: o conteúdo não alarga o card além da coluna.
+        // @container: o card se adapta à largura da própria coluna (Avançar vira só a seta quando estreito)
+        "@container grid min-w-0 grid-cols-[minmax(0,1fr)] gap-1.5 rounded-lg border bg-card p-2 text-sm shadow-xs transition-shadow",
         dragging && "opacity-60 shadow-lg ring-2 ring-ring",
         className,
       )}
     >
       <Link
         href={`/pedidos/${order.id}`}
-        className="truncate font-medium tabular-nums hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        // nunca cortado: em coluna estreita quebra nos hífens (PED-2026-/0001)
+        className="text-xs leading-tight font-medium tabular-nums hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none @[7rem]:text-sm"
       >
         {order.number}
       </Link>
@@ -81,10 +83,12 @@ export function OrderCard({
               aria-label={`Avançar ${order.number} para ${ORDER_STATUS_LABEL[next]}`}
               title={`Avançar para ${ORDER_STATUS_LABEL[next]}`}
             >
-              Avançar <ArrowRight aria-hidden />
+              <span className="hidden @[7.5rem]:inline">Avançar</span>
+              <ArrowRight aria-hidden />
             </Button>
           )}
-          <DropdownMenu>
+          {/* modal={false}: o menu não prende o foco; a confirmação de baixa que abre depois não é fechada por ele */}
+          <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
               <Button type="button" variant="ghost" size="icon-xs" className="shrink-0" aria-label={`Mover ${order.number} para…`}>
                 <ArrowRightLeft aria-hidden />

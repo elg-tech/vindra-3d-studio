@@ -25,6 +25,31 @@ import { useOrderMove } from "./use-order-move";
 
 type Columns = Record<BoardStatus, BoardOrder[]>;
 
+/**
+ * Pressionar em botão ou item de menu nunca começa arraste (o evento do menu "sobe" até o card pelo React).
+ * O número (link) pode ser usado para segurar o card: o clique sem movimento continua abrindo o pedido.
+ */
+const startsOnControl = (event: Event) =>
+  event.target instanceof Element && event.target.closest("button, input, select, textarea, [role=menuitem], [role=menu]") !== null;
+
+class CardPointerSensor extends PointerSensor {
+  static activators = [
+    {
+      eventName: "onPointerDown" as const,
+      handler: ({ nativeEvent: e }: { nativeEvent: PointerEvent }) => e.isPrimary && e.button === 0 && !startsOnControl(e),
+    },
+  ];
+}
+
+class CardTouchSensor extends TouchSensor {
+  static activators = [
+    {
+      eventName: "onTouchStart" as const,
+      handler: ({ nativeEvent: e }: { nativeEvent: TouchEvent }) => e.touches.length <= 1 && !startsOnControl(e),
+    },
+  ];
+}
+
 const group = (orders: BoardOrder[]): Columns =>
   Object.fromEntries(BOARD_STATUSES.map((s) => [s, orders.filter((o) => o.status === s)])) as Columns;
 
@@ -33,8 +58,8 @@ const signatureOf = (orders: BoardOrder[]) =>
 
 /**
  * Quadro de pedidos.
- * - A partir de 1280px as 7 colunas dividem a largura em partes iguais (sem rolagem).
- * - Entre 768 e 1280px, rolagem horizontal com rolagem automática rápida ao arrastar perto da borda.
+ * - A partir de 1024px as 7 colunas dividem a largura em partes iguais (sem rolagem); o card se adapta à coluna.
+ * - Entre 768 e 1024px, rolagem horizontal com rolagem automática rápida ao arrastar perto da borda.
  * - No celular, uma coluna por vez, em abas.
  * O quadro nunca é recriado ao mudar um pedido: só as colunas são atualizadas. Assim a rolagem fica onde estava.
  */
@@ -48,7 +73,9 @@ export function OrderBoard({ orders, spools }: { orders: BoardOrder[]; spools: S
   const scroller = useRef<HTMLDivElement>(null);
   const scrollLeft = useRef(0);
 
-  // dados novos do servidor (depois de mover, pagar etc.): atualiza as colunas sem recriar o quadro
+  // dados novos do servidor (depois de mover, pagar etc.): atualiza as colunas sem recriar o quadro.
+  // Durante um arraste espera soltar (senão uma atualização atrasada cancelaria o arraste); ao soltar, aplica.
+  // Botões e itens de menu não iniciam arraste (CardPointerSensor), então um arraste não fica preso por eles.
   const current = signatureOf(orders);
   if (current !== signature && activeId === null) {
     setSignature(current);
@@ -62,8 +89,8 @@ export function OrderBoard({ orders, spools }: { orders: BoardOrder[]; spools: S
   }, [columns]);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 6 } }),
+    useSensor(CardPointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(CardTouchSensor, { activationConstraint: { delay: 200, tolerance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
@@ -171,7 +198,7 @@ export function OrderBoard({ orders, spools }: { orders: BoardOrder[]; spools: S
             scrollLeft.current = e.currentTarget.scrollLeft;
           }}
           data-testid="quadro"
-          className="hidden gap-2 overflow-x-auto pb-2 md:flex xl:grid xl:grid-cols-7 xl:gap-1.5 xl:overflow-x-visible"
+          className="hidden gap-2 overflow-x-auto pb-2 md:flex lg:grid lg:grid-cols-7 lg:gap-1.5 lg:overflow-x-visible"
         >
           {BOARD_STATUSES.map((s) => (
             <Column key={s} status={s} orders={columns[s]} activeId={activeId} onMove={moveTo} />
@@ -199,11 +226,11 @@ function Column({
     <section
       aria-label={ORDER_STATUS_LABEL[status]}
       className={cn(
-        "flex w-56 shrink-0 flex-col gap-2 rounded-xl bg-muted/40 p-1.5 xl:w-auto xl:min-w-0 xl:p-1",
+        "flex w-52 shrink-0 flex-col gap-2 rounded-xl bg-muted/40 p-1.5 lg:w-auto lg:min-w-0 lg:p-1",
         isOver && "ring-2 ring-ring/60",
       )}
     >
-      <h2 className="flex items-center justify-between gap-1 px-1 pt-1 text-xs font-medium xl:text-[0.8rem]">
+      <h2 className="flex items-center justify-between gap-1 px-1 pt-1 text-xs font-medium">
         <span className="truncate">{ORDER_STATUS_LABEL[status]}</span>
         <span className="text-muted-foreground tabular-nums">{orders.length}</span>
       </h2>

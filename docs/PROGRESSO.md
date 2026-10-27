@@ -172,6 +172,13 @@ Existe um usuário só para testes locais, com `E2E_EMAIL` e `E2E_PASSWORD` no `
   768 e 1280px continua rolando, com rolagem automática mais rápida ao arrastar perto da borda. Cards compactos:
   número, cliente, selo de pagamento, prazo, total, "Avançar →" (próxima etapa, com os mesmos avisos e a baixa) e
   "Mover para…".
+- **Quadro sem rolagem a partir de 1024px** (ajuste de 27/10/2026): o card se adapta à largura da coluna (container
+  query): em coluna estreita o "Avançar" vira só a seta (com rótulo para leitor de tela) e o número quebra nos hífens,
+  nunca é cortado. Abaixo de 1024px (tablet) o quadro rola; no celular, abas.
+- **"Mover para…" e arrastar não disputam o mouse**: botões e itens de menu não iniciam arraste (sensores próprios do
+  dnd-kit); o número do pedido pode ser usado para segurar o card. O menu do card não prende o foco (`modal={false}`),
+  para a confirmação de baixa aberta por ele não ser fechada. Teste dedicado: `e2e-menu` (cada tipo de destino, com o
+  mouse, conferindo banco e tela).
 - **O quadro não é recriado ao mover** (a `key` que o recriava fazia a rolagem voltar ao começo): só as colunas são
   atualizadas. Baixa cancelada ou erro devolvem o card à coluna real. Arrastar pelo teclado só com o foco no card,
   para Enter/Espaço continuarem funcionando nos botões.
