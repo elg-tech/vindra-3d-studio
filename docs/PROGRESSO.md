@@ -7,7 +7,7 @@
 > **Quando o prompt e este arquivo divergirem, vale este arquivo.** O prompt é o original;
 > as mudanças combinadas depois estão em "Onde o prompt ficou desatualizado" e em "Decisões".
 
-Última atualização: 27/10/2026 (Fase 7 concluída).
+Última atualização: 27/10/2026 (Fase 8 concluída).
 
 ## Fases
 
@@ -20,8 +20,8 @@
 | 5 | Calculadora de custo e importação `.3mf` | ✅ concluída | `b8c4039`, ajustes em `627839a` |
 | 6 | Produtos e variações | ✅ concluída | `6dd5665`, `1317450`, `62c4aef` |
 | 7 | Clientes, orçamentos, página pública, PDF, Pix e WhatsApp | ✅ concluída | `cbc64fd` |
-| 8 | Pedidos (kanban), pagamentos, baixa de filamento e falhas | pronta, aguardando conferência do Enzo para o push | `c43a95c` e o commit das telas |
-| 9 | Financeiro e dashboard | | |
+| 8 | Pedidos (kanban), pagamentos, baixa de filamento e falhas | ✅ concluída | `c43a95c`, `e11becc`, `f322f43`, `c99e144` |
+| 9 | Financeiro e dashboard | próxima: plano em aprovação | |
 | 10 | Polimento e deploy | inclui medir o Lighthouse da página pública na Vercel | |
 
 Antes de cada commit de fase: `npm run lint`, `npm run typecheck`, `npm test` e `npm run build` passando.
