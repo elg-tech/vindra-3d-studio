@@ -21,7 +21,7 @@
 | 6 | Produtos e variações | ✅ concluída | `6dd5665`, `1317450`, `62c4aef` |
 | 7 | Clientes, orçamentos, página pública, PDF, Pix e WhatsApp | ✅ concluída | `cbc64fd` |
 | 8 | Pedidos (kanban), pagamentos, baixa de filamento e falhas | ✅ concluída | `c43a95c`, `e11becc`, `f322f43`, `c99e144` |
-| 9 | Financeiro e dashboard | próxima: plano em aprovação | |
+| 9 | Financeiro e dashboard | plano aprovado em `docs/PLANO-FASE-9.md`; implementação não começou | |
 | 10 | Polimento e deploy | inclui medir o Lighthouse da página pública na Vercel | |
 
 Antes de cada commit de fase: `npm run lint`, `npm run typecheck`, `npm test` e `npm run build` passando.
