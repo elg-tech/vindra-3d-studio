@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { FILAMENT_STATUS, MATERIALS } from "@/lib/filaments";
+import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from "@/lib/finance";
 import { PIX_KEY_TYPES, normalizePixKey } from "@/lib/pix";
 import { MODEL_SOURCES } from "@/lib/products";
 import { whatsappNumber } from "@/lib/quotes";
@@ -431,3 +432,23 @@ export const orderDetailsSchema = z.object({
   notes: optionalText(2000),
 });
 export type OrderDetailsInput = z.input<typeof orderDetailsSchema>;
+
+// ---------------------------------------------------------------
+// Financeiro: lançamentos manuais
+// ---------------------------------------------------------------
+export const transactionSchema = z
+  .object({
+    id: z.uuid().optional(),
+    kind: z.enum(["income", "expense"]),
+    category: z.string().min(1, "Escolha a categoria."),
+    description: optionalText(200),
+    amount: decimal({ positive: true, max: 1_000_000 }),
+    occurredOn: isoDate("Informe a data."),
+    isFixed: z.boolean(),
+  })
+  .superRefine((t, ctx) => {
+    const categories = t.kind === "income" ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+    if (!(t.category in categories)) ctx.addIssue({ code: "custom", path: ["category"], message: "Escolha a categoria." });
+    if (t.kind === "income" && t.isFixed) ctx.addIssue({ code: "custom", path: ["isFixed"], message: "Só despesa pode ser fixa." });
+  });
+export type TransactionInput = z.input<typeof transactionSchema>;

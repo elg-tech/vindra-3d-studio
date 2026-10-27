@@ -7,11 +7,9 @@ import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { loadSheets } from "@/lib/catalog";
 import { formatNumber } from "@/lib/format";
-import { priceVariant, summarizeProduct } from "@/lib/product-pricing";
+import { loadProductSummaries } from "@/lib/product-loaders";
 import { productImageUrl } from "@/lib/products";
-import { loadPricingContext } from "@/lib/pricing-context";
 import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 import { StatusBadge } from "./status-badge";
@@ -36,34 +34,7 @@ export default async function ProdutosPage({
   const filter: Filter = params.filtro && params.filtro in FILTERS ? (params.filtro as Filter) : "todos";
   const q = (params.q ?? "").trim().toLowerCase();
 
-  const supabase = await createClient();
-  const [ctx, sheets, { data: products, error }] = await Promise.all([
-    loadPricingContext(supabase),
-    loadSheets(supabase),
-    supabase
-      .from("products")
-      .select(
-        "id, name, sku, image_path, active, product_variants(id, name, sku, active, sort_order, cost_sheet_id, variant_channel_prices(channel_id, price))",
-      )
-      .order("name"),
-  ]);
-  if (error) throw new Error("Não foi possível carregar os produtos.");
-
-  // margem recalculada agora, com os preços dos carretéis e as taxas atuais
-  const sheetById = new Map(sheets.map((s) => [s.id, s.sheet]));
-  const rows = products.map((p) => {
-    const active = p.product_variants.filter((v) => v.active);
-    const summary = summarizeProduct(
-      active.map((v) =>
-        priceVariant(
-          (v.cost_sheet_id && sheetById.get(v.cost_sheet_id)) || null,
-          Object.fromEntries(v.variant_channel_prices.map((x) => [x.channel_id, x.price])),
-          ctx,
-        ),
-      ),
-    );
-    return { ...p, summary };
-  });
+  const rows = await loadProductSummaries(await createClient());
 
   const activeRows = rows.filter((r) => r.active);
   const counts: Record<Filter, number> = {

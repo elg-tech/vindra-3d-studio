@@ -81,12 +81,13 @@
   --border: #e3ded3;
   --input: #d9d3c6;
   --ring: #109079;
-
+  /* séries: 1 Venda direta, 2 Shopee, 3 TikTok, 4 outro canal (magenta), 5 neutro.
+     Validadas na Fase 9 com o validador da skill dataviz (daltonismo e contraste, claro e escuro). */
   /* séries: 1 Venda direta, 2 Shopee, 3 TikTok, 4 extra, 5 neutro */
-  --chart-1: #0e7f6b;
-  --chart-2: #d9622a;
-  --chart-3: #7c5bd6;
-  --chart-4: #3a6fd8;
+  --chart-1: #007a60;
+  --chart-2: #e06a2a;
+  --chart-3: #6a4fd0;
+  --chart-4: #d0558f;
   --chart-5: #8a8f98;
 
   /* breakdown de custo (5 fatias), validado com o validador de paleta: claro passa com
@@ -130,10 +131,10 @@
   --input: #383a41;
   --ring: #109079;
 
-  --chart-1: #2bb89a;
-  --chart-2: #f07b3f;
-  --chart-3: #9b7bea;
-  --chart-4: #5b8def;
+  --chart-1: #1fa888;
+  --chart-2: #e06a30;
+  --chart-3: #9085e9;
+  --chart-4: #d55181;
   --chart-5: #8a8f98;
 
   --cost-1: #1f9e83;

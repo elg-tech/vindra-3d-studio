@@ -42,6 +42,8 @@ function revalidateOrders(id?: string) {
   revalidatePath("/filamentos", "layout");
   revalidatePath("/clientes", "layout");
   revalidatePath("/orcamentos", "layout");
+  revalidatePath("/financeiro");
+  revalidatePath("/dashboard");
 }
 
 /** Custo por peça (agora) e tempo de impressão de cada item, pela ficha do banco. */
@@ -66,6 +68,10 @@ async function itemsFromSheets(
       return {
         costSheetId: sheetId,
         unitCost: evaluation?.ok ? Math.round(evaluation.result.unit.total * 10_000) / 10_000 : null,
+        // hora de trabalho do custo por peça, com o mesmo acréscimo da margem de falha (DRE "sem a sua hora")
+        unitLaborCost: evaluation?.ok
+          ? Math.round(evaluation.result.unit.labor * (1 + ctx.settings.failure_margin_pct / 100) * 10_000) / 10_000
+          : null,
         printMinutes: itemPrintMinutes(sheet ?? null, i.quantity),
       };
     }),
@@ -115,6 +121,7 @@ export async function createOrderFromQuote(quoteId: string): Promise<ActionResul
         unitPrice: i.unit_price,
         // custo da época do orçamento; sem ele, o custo de hoje da ficha
         unitCost: i.unit_cost ?? rows[idx].unitCost,
+        unitLaborCost: rows[idx].unitLaborCost,
         printMinutes: rows[idx].printMinutes,
       })),
       payments: plannedPayments(totals.total, totals.deposit),
@@ -164,6 +171,7 @@ export async function createManualOrder(input: unknown): Promise<ActionResult<{ 
         quantity: i.quantity,
         unitPrice: i.unitPrice,
         unitCost: rows[idx].unitCost,
+        unitLaborCost: rows[idx].unitLaborCost,
         printMinutes: rows[idx].printMinutes,
       })),
       payments: platform ? [] : plannedPayments(total, null),

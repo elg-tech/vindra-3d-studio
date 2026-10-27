@@ -426,6 +426,7 @@ export type Database = {
           print_minutes: number | null
           quantity: number
           unit_cost: number | null
+          unit_labor_cost: number | null
           unit_price: number
           updated_at: string
           variant_id: string | null
@@ -440,6 +441,7 @@ export type Database = {
           print_minutes?: number | null
           quantity?: number
           unit_cost?: number | null
+          unit_labor_cost?: number | null
           unit_price: number
           updated_at?: string
           variant_id?: string | null
@@ -454,6 +456,7 @@ export type Database = {
           print_minutes?: number | null
           quantity?: number
           unit_cost?: number | null
+          unit_labor_cost?: number | null
           unit_price?: number
           updated_at?: string
           variant_id?: string | null
