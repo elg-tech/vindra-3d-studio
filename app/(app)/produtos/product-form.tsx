@@ -47,6 +47,7 @@ export type ProductFormProduct = {
     id: string;
     name: string;
     sku: string | null;
+    image_path: string | null;
     cost_sheet_id: string | null;
     active: boolean;
     prices: { channel_id: string; price: number }[];
@@ -72,7 +73,14 @@ export function ProductForm({
 }) {
   const router = useRouter();
   const emptyPrices = () => ctx.channels.map((c) => ({ channelId: c.id, price: "" }));
-  const newVariant = (name = ""): VariantValues => ({ name, sku: "", costSheetId: "", active: true, prices: emptyPrices() });
+  const newVariant = (name = ""): VariantValues => ({
+    name,
+    sku: "",
+    imagePath: "",
+    costSheetId: "",
+    active: true,
+    prices: emptyPrices(),
+  });
 
   const { form, onSubmit, isPending } = useActionForm({
     schema: productSchema,
@@ -96,6 +104,7 @@ export function ProductForm({
             id: v.id,
             name: v.name,
             sku: v.sku ?? "",
+            imagePath: v.image_path ?? "",
             costSheetId: v.cost_sheet_id ?? "",
             active: v.active,
             // um campo por canal ativo, na ordem dos canais
@@ -121,6 +130,7 @@ export function ProductForm({
           </CardHeader>
           <CardContent className="grid gap-4">
             <PhotoField
+              label="Foto do produto"
               initialPath={product?.image_path ?? null}
               path={imagePath}
               userId={userId}
@@ -204,17 +214,26 @@ export function ProductForm({
             {e.variants.root.message}
           </p>
         )}
-        {variants.fields.map((v, i) => (
-          <VariantCard
-            key={v.key}
-            index={i}
-            form={form}
-            sheets={sheets}
-            ctx={ctx}
-            canRemove={variants.fields.length > 1}
-            onRemove={() => variants.remove(i)}
-          />
-        ))}
+        {variants.fields.map((v, i) => {
+          const savedImage = product?.variants.find((pv) => pv.id === v.id)?.image_path ?? null;
+          return (
+            <VariantCard
+              key={v.key}
+              index={i}
+              form={form}
+              sheets={sheets}
+              ctx={ctx}
+              userId={userId}
+              savedImage={savedImage}
+              canRemove={variants.fields.length > 1}
+              onRemove={async () => {
+                // foto enviada e ainda não salva sai junto; a já salva sai ao salvar o produto
+                await discardUnsavedPhoto(form.getValues(`variants.${i}.imagePath`) ?? "", savedImage);
+                variants.remove(i);
+              }}
+            />
+          );
+        })}
         <Button type="button" variant="outline" onClick={() => variants.append(newVariant())} className="w-fit">
           <Plus aria-hidden /> Adicionar variação
         </Button>
@@ -251,6 +270,8 @@ function VariantCard({
   form,
   sheets,
   ctx,
+  userId,
+  savedImage,
   canRemove,
   onRemove,
 }: {
@@ -258,6 +279,8 @@ function VariantCard({
   form: Form;
   sheets: ProductFormSheet[];
   ctx: PricingContext;
+  userId: string;
+  savedImage: string | null;
   canRemove: boolean;
   onRemove: () => void;
 }) {
@@ -283,6 +306,15 @@ function VariantCard({
         </CardTitle>
       </CardHeader>
       <CardContent className="grid gap-4">
+        <PhotoField
+          label="Foto da variação"
+          hint="Opcional. Sem foto, o orçamento e a página do cliente usam a foto do produto."
+          compact
+          initialPath={savedImage}
+          path={values.imagePath ?? ""}
+          userId={userId}
+          onChange={(path) => setValue(`variants.${i}.imagePath`, path, { shouldDirty: true })}
+        />
         <div className="grid gap-4 sm:grid-cols-2">
           <TextField
             label="Nome da variação"
@@ -453,16 +485,27 @@ function ChannelRow({
   );
 }
 
+/** Apaga do Storage uma foto enviada nesta edição que ainda não foi salva. */
+async function discardUnsavedPhoto(current: string, initialPath: string | null) {
+  if (current && current !== initialPath) await createClient().storage.from("product-images").remove([current]);
+}
+
 /**
- * Foto do produto: reduz no navegador e envia na hora para product-images/<usuário>/produtos/.
- * Uma foto enviada e trocada antes de salvar é apagada; a foto antiga do produto só sai ao salvar.
+ * Foto do produto ou da variação: reduz no navegador e envia na hora para product-images/<usuário>/produtos/.
+ * Uma foto enviada e trocada antes de salvar é apagada; a foto antiga só sai ao salvar (no servidor).
  */
 function PhotoField({
+  label = "Foto",
+  hint = "Reduzida para até 1600 px antes de enviar.",
+  compact,
   initialPath,
   path,
   userId,
   onChange,
 }: {
+  label?: string;
+  hint?: string;
+  compact?: boolean;
   initialPath: string | null;
   path: string;
   userId: string;
@@ -471,10 +514,7 @@ function PhotoField({
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const url = productImageUrl(path || null);
-
-  async function discardUnsaved(current: string) {
-    if (current && current !== initialPath) await createClient().storage.from("product-images").remove([current]);
-  }
+  const discardUnsaved = (current: string) => discardUnsavedPhoto(current, initialPath);
 
   async function onFile(file: File | undefined) {
     if (!file) return;
@@ -502,11 +542,11 @@ function PhotoField({
 
   return (
     <div className="grid gap-1.5">
-      <span className="text-sm font-medium">Foto</span>
+      <span className="text-sm font-medium">{label}</span>
       <div className="flex items-center gap-3">
-        <div className="relative size-24 shrink-0 overflow-hidden rounded-lg border bg-muted">
+        <div className={cn("relative shrink-0 overflow-hidden rounded-lg border bg-muted", compact ? "size-16" : "size-24")}>
           {url ? (
-            <Image src={url} alt="Foto do produto" fill sizes="96px" className="object-cover" />
+            <Image src={url} alt={label} fill sizes={compact ? "64px" : "96px"} className="object-cover" />
           ) : (
             <ImagePlus className="absolute inset-0 m-auto size-6 text-muted-foreground" aria-hidden />
           )}
@@ -536,11 +576,11 @@ function PhotoField({
           accept="image/jpeg,image/png,image/webp"
           className="sr-only"
           tabIndex={-1}
-          aria-label="Escolher foto do produto"
+          aria-label={`Escolher ${label.toLowerCase()}`}
           onChange={(ev) => onFile(ev.target.files?.[0])}
         />
       </div>
-      <p className="text-xs text-muted-foreground">Reduzida para até 1600 px antes de enviar.</p>
+      <p className="text-xs text-muted-foreground">{hint}</p>
     </div>
   );
 }

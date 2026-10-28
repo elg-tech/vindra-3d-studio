@@ -243,6 +243,7 @@ export const productSchema = z
           id: z.uuid().optional(),
           name: requiredText(80),
           sku: sku(),
+          imagePath: optionalText(300),
           costSheetId: optionalUuid(),
           active: z.boolean(),
           prices: z.array(z.object({ channelId: z.uuid(), price: optionalDecimal({ min: 0, max: 100_000 }) })),

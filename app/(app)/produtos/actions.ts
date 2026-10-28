@@ -21,9 +21,23 @@ function revalidateCatalog(productId?: string) {
   revalidatePath("/calculadora");
 }
 
-async function removeImage(supabase: Awaited<ReturnType<typeof createClient>>, path: string | null) {
+type Supabase = Awaited<ReturnType<typeof createClient>>;
+
+async function removeImages(supabase: Supabase, paths: (string | null)[]) {
   // melhor esforço: foto órfã não impede salvar nem excluir
-  if (path) await supabase.storage.from("product-images").remove([path]);
+  const list = paths.filter((p): p is string => Boolean(p));
+  if (list.length) await supabase.storage.from("product-images").remove(list);
+}
+
+/** Fotos guardadas hoje: a do produto e as das variações. */
+async function storedImages(supabase: Supabase, productId: string): Promise<string[]> {
+  const { data } = await supabase
+    .from("products")
+    .select("image_path, product_variants(image_path)")
+    .eq("id", productId)
+    .maybeSingle();
+  if (!data) return [];
+  return [data.image_path, ...data.product_variants.map((v) => v.image_path)].filter((p): p is string => Boolean(p));
 }
 
 export async function saveProduct(input: unknown): Promise<ActionResult<{ id: string }>> {
@@ -33,31 +47,29 @@ export async function saveProduct(input: unknown): Promise<ActionResult<{ id: st
   if (!userId) return { ok: false, error: "Sessão expirada. Entre novamente." };
   const product = parsed.data;
 
-  // a foto precisa estar na pasta do próprio usuário
-  if (product.imagePath && !product.imagePath.startsWith(`${userId}/`)) return { ok: false, error: "Foto inválida." };
+  // as fotos (produto e variações) precisam estar na pasta do próprio usuário
+  const images = [product.imagePath, ...product.variants.map((v) => v.imagePath)].filter((p): p is string => Boolean(p));
+  if (images.some((p) => !p.startsWith(`${userId}/`))) return { ok: false, error: "Foto inválida." };
 
   const supabase = await createClient();
-  let oldImage: string | null = null;
-  if (product.id) {
-    const { data } = await supabase.from("products").select("image_path").eq("id", product.id).maybeSingle();
-    oldImage = data?.image_path ?? null;
-  }
+  const oldImages = product.id ? await storedImages(supabase, product.id) : [];
 
   const { data, error } = await supabase.rpc("save_product", { p_product: product });
   if (error) return { ok: false, error: productError(error) };
 
-  if (oldImage && oldImage !== product.imagePath) await removeImage(supabase, oldImage);
+  // fotos trocadas, removidas ou de variações excluídas
+  await removeImages(supabase, oldImages.filter((p) => !images.includes(p)));
   revalidateCatalog(data);
   return { ok: true, message: product.id ? "Produto atualizado." : "Produto criado.", data: { id: data } };
 }
 
 export async function deleteProduct(id: string): Promise<ActionResult> {
   const supabase = await createClient();
-  const { data: product } = await supabase.from("products").select("image_path").eq("id", id).maybeSingle();
+  const images = await storedImages(supabase, id);
   // variações e preços saem junto (cascade); orçamentos e pedidos guardam nome e preço próprios
   const { error } = await supabase.from("products").delete().eq("id", id);
   if (error) return { ok: false, error: dbError(error) };
-  await removeImage(supabase, product?.image_path ?? null);
+  await removeImages(supabase, images);
   revalidateCatalog();
   return { ok: true, message: "Produto excluído." };
 }
