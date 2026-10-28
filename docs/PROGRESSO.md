@@ -22,7 +22,7 @@
 | 7 | Clientes, orçamentos, página pública, PDF, Pix e WhatsApp | ✅ concluída | `cbc64fd` |
 | 8 | Pedidos (kanban), pagamentos, baixa de filamento e falhas | ✅ concluída | `c43a95c`, `e11becc`, `f322f43`, `c99e144` |
 | 9 | Financeiro e dashboard | ✅ concluída (plano em `docs/PLANO-FASE-9.md`) | `f18fac5`, ajustes em `f0e77be` |
-| 10 | Polimento e deploy | inclui medir o Lighthouse da página pública na Vercel | |
+| 10 | Polimento e deploy | plano proposto em `docs/PLANO-FASE-10.md`, aguardando aprovação | |
 
 Antes de cada commit de fase: `npm run lint`, `npm run typecheck`, `npm test` e `npm run build` passando.
 O push vem depois que o Enzo confere no navegador.
