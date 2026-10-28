@@ -22,7 +22,7 @@
 | 7 | Clientes, orçamentos, página pública, PDF, Pix e WhatsApp | ✅ concluída | `cbc64fd` |
 | 8 | Pedidos (kanban), pagamentos, baixa de filamento e falhas | ✅ concluída | `c43a95c`, `e11becc`, `f322f43`, `c99e144` |
 | 9 | Financeiro e dashboard | ✅ concluída (plano em `docs/PLANO-FASE-9.md`) | `f18fac5`, ajustes em `f0e77be` |
-| 10 | Polimento (deploy já feito pelo Enzo) | ✅ concluída na branch `fase-10`; merge na `main` depois da conferência do preview | `8e97ca6`, `b74607e`, `5d28822`, `2354740`, `dbe869e`, `4bb5be2`, `aa8110d`, `5970dd5` |
+| 10 | Polimento (deploy já feito pelo Enzo) | ✅ concluída; preview conferido pelo Enzo e merge na `main` em 28/10/2026 (`31f0d8c`, em produção) | `8e97ca6`, `b74607e`, `5d28822`, `2354740`, `dbe869e`, `4bb5be2`, `aa8110d`, `5970dd5`, `03df712` |
 
 Antes de cada commit de fase: `npm run lint`, `npm run typecheck`, `npm test` e `npm run build` passando.
 O push vem depois que o Enzo confere no navegador.
@@ -286,6 +286,9 @@ Existe um usuário só para testes locais, com `E2E_EMAIL` e `E2E_PASSWORD` no `
 - **Performance medida** (página pública, celular, comprimido): 239 KB de JS (~140 KB são React/Next), 30 KB de fonte,
   26 KB de imagens; Recharts, dnd-kit e react-pdf fora dela. Geist Mono sem preload (−23,6 KB de fonte por página).
   Tirar o `TooltipProvider` (sem uso) **aumentava** o JS em 11,6 KB pela divisão de chunks do Turbopack: ficou.
+- **Lighthouse da página pública `/o/`** (medido pelo Enzo, mobile, Moto G Power, 4G lento, 28/10/2026):
+  Performance 100, Accessibility 100, Best Practices 100, SEO 66. O SEO perde só por "blocked from indexing", que é
+  intencional (`noindex`). FCP 1,0 s, LCP 1,3 s, TBT 20 ms, CLS 0. Meta (> 90) atingida.
 - **Avisos do build da Vercel:** sem acesso ao log; o build local (também com `VERCEL=1`) não tem aviso. O conhecido é o
   `npm warn deprecated eslint@9`: o ESLint 10 quebra o `eslint-plugin-import` do `eslint-config-next` (conflito de
   peer), então fica o 9 até o `eslint-config-next` suportar o 10.
@@ -312,7 +315,8 @@ Resultado final: axe sem violações, sem rolagem horizontal, foco visível em t
 
 ## Pendências
 
-- [ ] **Lighthouse** (meta > 90): o Enzo mede no preview da branch `fase-10` (página pública no celular e `/login`).
+- [x] **Lighthouse da página pública `/o/`:** 100/100/100, SEO 66 intencional (ver "Polimento (Fase 10)").
+- [ ] **Lighthouse do `/login`:** falta o Enzo mandar as notas.
 - [ ] **Avisos do build da Vercel:** colar as 3 linhas do log para conferir (só o do ESLint 9 foi identificado).
 - [ ] **Restauração de backup** só testada até gerar o SQL; ensaiar num projeto Supabase de teste.
 - [ ] **Excluir logo depois de salvar um produto** (~1 s): o `router.refresh` remonta o formulário (`key` com o JSON do
