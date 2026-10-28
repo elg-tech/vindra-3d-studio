@@ -11,8 +11,11 @@ import {
   failureCost,
   itemPrintMinutes,
   machineCostPerHour,
+  type PaymentKind,
   plannedPayments,
+  refundAmount,
 } from "@/lib/orders";
+import { formatCurrency } from "@/lib/format";
 import { profitAtPrice } from "@/lib/pricing";
 import { loadPricingContext } from "@/lib/pricing-context";
 import { type DiscountType, quoteTotals } from "@/lib/quotes";
@@ -29,6 +32,7 @@ const MESSAGES: Record<string, string> = {
   order_cancelled: "Pedido cancelado.",
   already_cancelled: "Este pedido já foi cancelado.",
   order_not_found: "Pedido não encontrado.",
+  order_number_mismatch: "O número digitado não confere com o do pedido.",
 };
 
 function orderError(error: DbError): string {
@@ -268,12 +272,39 @@ export async function recordFailure(input: unknown): Promise<ActionResult> {
   return { ok: true, message: "Falha registrada." };
 }
 
-export async function cancelOrder(orderId: string, printed: boolean): Promise<ActionResult> {
+/** Cancelar; com `refund`, o que o cliente pagou vira um Estorno de hoje no Financeiro (valor calculado aqui). */
+export async function cancelOrder(orderId: string, printed: boolean, refund: boolean): Promise<ActionResult> {
   const supabase = await createClient();
-  const { error } = await supabase.rpc("cancel_order", { p_order_id: orderId, p_printed: printed });
+  let amount = 0;
+  if (refund) {
+    const { data: o } = await supabase
+      .from("orders")
+      .select("total_amount, channel_fees, paid_by_platform, order_payments(kind, amount, paid_on)")
+      .eq("id", orderId)
+      .maybeSingle();
+    if (!o) return { ok: false, error: MESSAGES.order_not_found };
+    amount = refundAmount({
+      paidByPlatform: o.paid_by_platform,
+      total: o.total_amount,
+      channelFees: o.channel_fees,
+      payments: o.order_payments.map((p) => ({ kind: p.kind as PaymentKind, amount: p.amount, paidOn: p.paid_on })),
+    });
+  }
+  const { error } = await supabase.rpc("cancel_order", { p_order_id: orderId, p_printed: printed, p_refund: amount });
   if (error) return { ok: false, error: orderError(error) };
   revalidateOrders(orderId);
-  return { ok: true, message: printed ? "Pedido cancelado. As peças ficaram como perda." : "Pedido cancelado. Filamento devolvido ao estoque." };
+  const parts = ["Pedido cancelado."];
+  if (amount > 0) parts.push(`Estorno de ${formatCurrency(amount)} lançado.`);
+  return { ok: true, message: parts.join(" ") };
+}
+
+/** Exclui o pedido como se nunca tivesse existido; `number` é o número digitado na confirmação. */
+export async function deleteOrder(orderId: string, number: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("delete_order", { p_order_id: orderId, p_number: number });
+  if (error) return { ok: false, error: orderError(error) };
+  revalidateOrders();
+  return { ok: true, message: "Pedido excluído." };
 }
 
 export async function updateOrderDetails(input: unknown): Promise<ActionResult> {

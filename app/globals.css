@@ -165,3 +165,48 @@
     -webkit-tap-highlight-color: transparent;
   }
 }
+/*
+ * Cursor global. Fica fora das camadas de propósito: estilos sem camada vencem os utilitários
+ * dos componentes (cursor-default dos itens de menu, disabled:pointer-events-none dos botões),
+ * e o :where() (especificidade zero) deixa as regras de desabilitado e de arrastar vencerem,
+ * então não é preciso mexer componente por componente. O Tailwind v4 tirou o pointer dos botões.
+ */
+:where(
+    button,
+    a[href],
+    summary,
+    select,
+    input:is([type="checkbox"], [type="radio"], [type="file"], [type="color"]),
+    label:has(> input:is([type="checkbox"], [type="radio"], [type="file"])),
+    [role="button"],
+    [role="link"],
+    [role="tab"],
+    [role="menuitem"],
+    [role="menuitemcheckbox"],
+    [role="menuitemradio"],
+    [role="option"],
+    [role="radio"],
+    [role="checkbox"],
+    [role="switch"],
+    [role="combobox"]
+  ) {
+  cursor: pointer;
+}
+
+/* card do quadro de pedidos (dnd-kit): mãozinha de arrastar */
+[aria-roledescription="sortable"] {
+  cursor: grab;
+}
+[aria-roledescription="sortable"]:active {
+  cursor: grabbing;
+}
+
+/* desabilitado: o pointer-events volta só onde o navegador ou o Radix já bloqueiam o clique */
+:is(button, select, input, textarea, fieldset):disabled,
+[data-disabled]:not([data-disabled="false"]) {
+  cursor: not-allowed;
+  pointer-events: auto;
+}
+[aria-disabled="true"] {
+  cursor: not-allowed;
+}

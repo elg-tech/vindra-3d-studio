@@ -1251,7 +1251,7 @@ export type Database = {
         Returns: undefined
       }
       cancel_order: {
-        Args: { p_order_id: string; p_printed: boolean }
+        Args: { p_order_id: string; p_printed: boolean; p_refund?: number }
         Returns: undefined
       }
       consume_order_filament: {
@@ -1259,6 +1259,10 @@ export type Database = {
         Returns: undefined
       }
       create_order: { Args: { p_order: Json }; Returns: string }
+      delete_order: {
+        Args: { p_number: string; p_order_id: string }
+        Returns: undefined
+      }
       get_public_quote: { Args: { p_token: string }; Returns: Json }
       record_print_failure: {
         Args: { p_failure: Json; p_order_id: string }

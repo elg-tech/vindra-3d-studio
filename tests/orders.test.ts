@@ -14,6 +14,7 @@ import {
   paymentState,
   plannedPayments,
   queueMinutes,
+  refundAmount,
   suggestSpool,
 } from "@/lib/orders";
 
@@ -206,5 +207,19 @@ describe("nextStatus", () => {
     expect(nextStatus("ready")).toBe("shipped");
     expect(nextStatus("delivered")).toBeNull();
     expect(nextStatus("cancelled")).toBeNull();
+  });
+});
+
+describe("refundAmount", () => {
+  const payments = [
+    { kind: "deposit" as const, amount: 40, paidOn: "2026-10-01" },
+    { kind: "balance" as const, amount: 60, paidOn: null },
+  ];
+  it("devolve só o que o cliente já pagou", () => {
+    expect(refundAmount({ paidByPlatform: false, total: 100, channelFees: 5, payments })).toBe(40);
+    expect(refundAmount({ paidByPlatform: false, total: 100, channelFees: 5, payments: [{ ...payments[0], paidOn: null }] })).toBe(0);
+  });
+  it("plataforma: o que a loja recebeu, sem as taxas", () => {
+    expect(refundAmount({ paidByPlatform: true, total: 100, channelFees: 21.5, payments: [] })).toBe(78.5);
   });
 });

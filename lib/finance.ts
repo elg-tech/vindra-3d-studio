@@ -133,6 +133,8 @@ export type ManualTransaction = {
   amount: number;
   occurredOn: string;
   isFixed: boolean;
+  /** Pedido de origem (estorno lançado ao cancelar). */
+  orderId?: string | null;
 };
 
 export type FailureCost = { cost: number; occurredAt: string };
@@ -246,7 +248,7 @@ export function manualEntries(transactions: ManualTransaction[]): FinanceEntry[]
     gross: t.amount,
     fee: 0,
     net: t.kind === "income" ? t.amount : -t.amount,
-    href: null,
+    href: t.orderId ? `/pedidos/${t.orderId}` : null,
     manual: t,
   }));
 }

@@ -14,11 +14,12 @@ import {
   type PaymentMethod,
   formatMinutes,
   orderProfit,
+  refundAmount,
 } from "@/lib/orders";
 import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 import { DueBadge, PaymentBadge } from "../order-badges";
-import { CancelOrder, DetailsForm, FailureDialog, PaymentsPanel, StatusPanel } from "./order-panels";
+import { CancelOrder, DeleteOrder, DetailsForm, FailureDialog, PaymentsPanel, StatusPanel } from "./order-panels";
 
 const isUuid = (id: string) => /^[0-9a-f-]{36}$/i.test(id);
 const PAYMENT_ORDER: Record<string, number> = { deposit: 0, balance: 1, full: 2 };
@@ -239,7 +240,22 @@ export default async function PedidoPage({ params }: { params: Promise<{ id: str
             </CardHeader>
             <CardContent className="grid gap-3">
               <DetailsForm orderId={o.id} trackingCode={o.tracking_code} dueDate={o.due_date} notes={o.notes} disabled={cancelled} />
-              {!cancelled && <CancelOrder orderId={o.id} number={o.number} consumed={o.consumed_at !== null} />}
+              <div className="grid gap-1">
+                {!cancelled && (
+                  <CancelOrder
+                    orderId={o.id}
+                    number={o.number}
+                    consumed={o.consumed_at !== null}
+                    refund={refundAmount({
+                      paidByPlatform: o.paid_by_platform,
+                      total: o.total_amount,
+                      channelFees: o.channel_fees,
+                      payments: o.order_payments.map((p) => ({ kind: p.kind as PaymentKind, amount: p.amount, paidOn: p.paid_on })),
+                    })}
+                  />
+                )}
+                <DeleteOrder orderId={o.id} number={o.number} fromQuote={o.quotes?.number ?? null} />
+              </div>
             </CardContent>
           </Card>
         </div>

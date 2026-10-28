@@ -162,6 +162,15 @@ export function plannedPayments(total: number, deposit: number | null): { kind: 
   return [{ kind: "full", amount: total }];
 }
 
+/**
+ * Quanto devolver ao cliente no cancelamento: o que ele já pagou.
+ * Pedido de plataforma: o que a loja recebeu (total − taxas do canal), que é o que entrou no caixa.
+ */
+export function refundAmount(o: { paidByPlatform: boolean; total: number; channelFees: number; payments: OrderPayment[] }): number {
+  const paid = o.paidByPlatform ? o.total - o.channelFees : o.payments.reduce((s, p) => s + (p.paidOn ? p.amount : 0), 0);
+  return Math.max(Math.round(paid * 100) / 100, 0);
+}
+
 /** Aviso (não bloqueio) ao mover o pedido. */
 export function moveWarning(target: OrderStatus, state: PaymentState): string | null {
   if (state === "platform" || state === "paid") return null;

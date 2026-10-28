@@ -15,7 +15,7 @@ export async function loadFinance(supabase: Supabase) {
   const [orders, spools, transactions, failures, settings] = await Promise.all([
     supabase.from("orders").select(ORDER_COLUMNS).order("created_at"),
     supabase.from("filaments").select("id, material, color_name, price_paid, shipping_cost, purchased_at, created_at, filament_brands(name)"),
-    supabase.from("transactions").select("id, kind, category, description, gross_amount, occurred_on, is_fixed").order("occurred_on"),
+    supabase.from("transactions").select("id, kind, category, description, gross_amount, occurred_on, is_fixed, order_id").order("occurred_on"),
     supabase.from("print_failures").select("cost, minutes_lost, occurred_at"),
     supabase.from("settings").select("tax_pct").maybeSingle(),
   ]);
@@ -66,6 +66,7 @@ export async function loadFinance(supabase: Supabase) {
     amount: t.gross_amount,
     occurredOn: t.occurred_on,
     isFixed: t.is_fixed,
+    orderId: t.order_id,
   }));
 
   const failureCosts: (FailureCost & { minutes: number })[] = failures.data.map((f) => ({

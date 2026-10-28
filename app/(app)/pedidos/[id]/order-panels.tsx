@@ -1,6 +1,6 @@
 "use client";
 
-import { Ban, CheckCircle2, Loader2, TriangleAlert, Undo2 } from "lucide-react";
+import { Ban, CheckCircle2, Loader2, Trash2, TriangleAlert, Undo2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useId, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -36,7 +36,7 @@ import {
   type PaymentMethod,
 } from "@/lib/orders";
 import { formatDay, todayIso } from "@/lib/quotes";
-import { cancelOrder, markPayment, recordFailure, unmarkPayment, updateOrderDetails } from "../actions";
+import { cancelOrder, deleteOrder, markPayment, recordFailure, unmarkPayment, updateOrderDetails } from "../actions";
 import { type MovableOrder, useOrderMove } from "../use-order-move";
 
 function useRun() {
@@ -282,33 +282,178 @@ export function FailureDialog({ orderId, spools }: { orderId: string; spools: Sp
 // ---------------------------------------------------------------
 // Cancelar
 // ---------------------------------------------------------------
-export function CancelOrder({ orderId, number, consumed }: { orderId: string; number: string; consumed: boolean }) {
-  const { run, isPending } = useRun();
+type Choice<T extends string> = { value: T; label: string; hint: string };
+
+/** Pergunta de escolha única (radio), com a explicação de cada opção. */
+function ChoiceGroup<T extends string>({
+  legend,
+  options,
+  value,
+  onChange,
+}: {
+  legend: string;
+  options: Choice<T>[];
+  value: T | null;
+  onChange: (v: T) => void;
+}) {
+  const name = useId();
   return (
-    <AlertDialog>
+    <fieldset className="grid gap-2">
+      <legend className="mb-2 text-sm font-medium">{legend}</legend>
+      {options.map((o) => (
+        <label
+          key={o.value}
+          className="flex items-start gap-3 rounded-lg border p-3 text-sm transition-colors has-checked:border-primary has-checked:bg-primary/5"
+        >
+          <input
+            type="radio"
+            name={name}
+            value={o.value}
+            checked={value === o.value}
+            onChange={() => onChange(o.value)}
+            className="mt-0.5 size-4 accent-primary"
+          />
+          <span className="grid gap-0.5">
+            <span className="font-medium">{o.label}</span>
+            <span className="text-xs text-muted-foreground">{o.hint}</span>
+          </span>
+        </label>
+      ))}
+    </fieldset>
+  );
+}
+
+export function CancelOrder({
+  orderId,
+  number,
+  consumed,
+  refund,
+}: {
+  orderId: string;
+  number: string;
+  consumed: boolean;
+  /** O que o cliente já pagou (0 = nenhum pagamento). */
+  refund: number;
+}) {
+  const [open, setOpen] = useState(false);
+  const [printed, setPrinted] = useState<"yes" | "no" | null>(null);
+  const [giveBack, setGiveBack] = useState<"yes" | "no" | null>(null);
+  const { run, isPending } = useRun();
+  const ready = (!consumed || printed !== null) && (refund <= 0 || giveBack !== null);
+
+  const reset = (next: boolean) => {
+    setOpen(next);
+    if (!next) {
+      setPrinted(null);
+      setGiveBack(null);
+    }
+  };
+
+  return (
+    <AlertDialog open={open} onOpenChange={reset}>
       <AlertDialogTrigger asChild>
         <Button type="button" variant="ghost" className="w-full text-destructive hover:text-destructive">
           <Ban aria-hidden /> Cancelar pedido
         </Button>
       </AlertDialogTrigger>
-      <AlertDialogContent>
+      <AlertDialogContent className="max-h-[90dvh] overflow-y-auto">
         <AlertDialogHeader>
-          <AlertDialogTitle>Cancelar o {number}?</AlertDialogTitle>
+          <AlertDialogTitle>Cancelar {number}</AlertDialogTitle>
           <AlertDialogDescription>
-            {consumed
-              ? "As peças chegaram a ser impressas? Se não, o filamento baixado volta ao carretel. Se sim, a baixa fica (as peças são perda). Falhas registradas não voltam."
-              : "O pedido sai do quadro. Nenhum filamento foi baixado."}
+            O pedido sai do quadro. Falhas registradas continuam como perda.
+            {!consumed && " Nenhum filamento foi baixado."}
           </AlertDialogDescription>
         </AlertDialogHeader>
+        <div className="grid gap-5">
+          {consumed && (
+            <ChoiceGroup
+              legend="As peças chegaram a ser impressas?"
+              value={printed}
+              onChange={setPrinted}
+              options={[
+                { value: "no", label: "Não", hint: "O filamento baixado volta ao carretel." },
+                { value: "yes", label: "Sim", hint: "A baixa fica: as peças são perda." },
+              ]}
+            />
+          )}
+          {refund > 0 && (
+            <ChoiceGroup
+              legend={`Houve pagamento de ${formatCurrency(refund)}: devolver ao cliente?`}
+              value={giveBack}
+              onChange={setGiveBack}
+              options={[
+                { value: "yes", label: "Sim, devolver", hint: `Lança um Estorno de ${formatCurrency(refund)} com a data de hoje no Financeiro.` },
+                { value: "no", label: "Não", hint: "O valor continua como receita." },
+              ]}
+            />
+          )}
+        </div>
         <AlertDialogFooter className="gap-2">
           <AlertDialogCancel>Voltar</AlertDialogCancel>
-          {consumed && (
-            <Button type="button" variant="outline" disabled={isPending} onClick={() => run(() => cancelOrder(orderId, true))}>
-              Sim, foram impressas
-            </Button>
-          )}
-          <Button type="button" variant="destructive" disabled={isPending} onClick={() => run(() => cancelOrder(orderId, false))}>
-            {consumed ? "Não, devolver o filamento" : "Cancelar pedido"}
+          <Button
+            type="button"
+            variant="destructive"
+            disabled={!ready || isPending}
+            onClick={() => run(() => cancelOrder(orderId, printed === "yes", giveBack === "yes"), () => reset(false))}
+          >
+            {isPending && <Loader2 className="animate-spin" aria-hidden />}
+            Cancelar pedido
+          </Button>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
+// ---------------------------------------------------------------
+// Excluir
+// ---------------------------------------------------------------
+export function DeleteOrder({ orderId, number, fromQuote }: { orderId: string; number: string; fromQuote: string | null }) {
+  const id = useId();
+  const router = useRouter();
+  const [typed, setTyped] = useState("");
+  const [isPending, startTransition] = useTransition();
+  const matches = typed.trim().toUpperCase() === number.toUpperCase();
+
+  const confirm = () =>
+    startTransition(async () => {
+      const result = await deleteOrder(orderId, typed);
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success(result.message ?? "Pedido excluído.");
+      router.push("/pedidos");
+    });
+
+  return (
+    <AlertDialog onOpenChange={(open) => !open && setTyped("")}>
+      <AlertDialogTrigger asChild>
+        <Button type="button" variant="ghost" className="w-full text-destructive hover:text-destructive">
+          <Trash2 aria-hidden /> Excluir pedido
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Excluir {number}</AlertDialogTitle>
+          <AlertDialogDescription>
+            Apaga o pedido, os itens, os pagamentos, as falhas e os estornos, como se nunca tivesse existido. O filamento
+            baixado e o perdido em falhas voltam ao carretel.
+            {fromQuote && ` O orçamento ${fromQuote} fica livre para virar pedido de novo.`} Não dá para desfazer. Para um
+            pedido real que não vai acontecer, use &quot;Cancelar pedido&quot;.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <div className="grid gap-1.5">
+          <Label htmlFor={id}>
+            Digite <span className="font-mono">{number}</span> para confirmar
+          </Label>
+          <Input id={id} value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" spellCheck={false} />
+        </div>
+        <AlertDialogFooter className="gap-2">
+          <AlertDialogCancel>Voltar</AlertDialogCancel>
+          <Button type="button" variant="destructive" disabled={!matches || isPending} onClick={confirm}>
+            {isPending && <Loader2 className="animate-spin" aria-hidden />}
+            Excluir pedido
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>
