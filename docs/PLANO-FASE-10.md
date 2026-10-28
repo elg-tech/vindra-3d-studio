@@ -1,6 +1,7 @@
 # Plano da Fase 10: polimento e deploy na Vercel
 
-Proposta de 28/10/2026, **aguardando aprovação do Enzo**. Implementação ainda não começou.
+Proposta de 28/10/2026, **aprovada pelo Enzo em 28/10/2026** (as 6 decisões). Implementação ainda não começou:
+o Enzo faz o deploy (passo 6) por conta própria e avisa quando terminar.
 
 ## Ponto de partida
 
@@ -114,7 +115,7 @@ testes (`npm test` e `npm run test:db`), deploy na Vercel e o que fazer quando a
 
 ## O que só o Enzo pode fazer
 - Aprovar este plano (e as 6 decisões).
-- Responder: a impressora é a A1, a A1 mini ou as duas?
+- ~~Responder: a impressora é a A1, a A1 mini ou as duas?~~ Respondido: é a A1 (o cadastro do seed já está certo).
 - Se quiser fechar a pendência do `.3mf`: mandar um `.gcode.3mf` fatiado multicor e a pesagem real da peça.
 - Os passos 1 a 8 do deploy (conta, permissões, variáveis, Supabase Auth, teste no celular).
 - Rodar `npm run db:push` se alguma correção precisar de migração.

@@ -22,7 +22,7 @@
 | 7 | Clientes, orçamentos, página pública, PDF, Pix e WhatsApp | ✅ concluída | `cbc64fd` |
 | 8 | Pedidos (kanban), pagamentos, baixa de filamento e falhas | ✅ concluída | `c43a95c`, `e11becc`, `f322f43`, `c99e144` |
 | 9 | Financeiro e dashboard | ✅ concluída (plano em `docs/PLANO-FASE-9.md`) | `f18fac5`, ajustes em `f0e77be` |
-| 10 | Polimento e deploy | plano proposto em `docs/PLANO-FASE-10.md`, aguardando aprovação | |
+| 10 | Polimento e deploy | plano aprovado em `docs/PLANO-FASE-10.md`; Enzo fazendo o deploy, implementação não começou | |
 
 Antes de cada commit de fase: `npm run lint`, `npm run typecheck`, `npm test` e `npm run build` passando.
 O push vem depois que o Enzo confere no navegador.
@@ -245,7 +245,7 @@ Existe um usuário só para testes locais, com `E2E_EMAIL` e `E2E_PASSWORD` no `
   Fatiar uma mesa multicor, exportar com *Arquivo → Exportar → Exportar arquivo de mesa fatiada*
   (`.gcode.3mf`) e comparar a soma dos filamentos com o total do Bambu Studio (modelo + purga + torre)
   e com a pesagem real. Se não bater, a importação precisa preencher a purga com a diferença.
-- [ ] **Conferir impressora A1 x A1 mini.** O seed cadastra uma Bambu Lab A1, mas o `.3mf` real recebido
-  era de uma A1 mini. Confirmar qual impressora é usada (ou se são as duas) e ajustar o cadastro.
+- [x] **Impressora A1 x A1 mini:** o Enzo confirmou em 28/10/2026 que é a **A1** (o seed já cadastra a A1). O `.3mf`
+  de A1 mini recebido era só um arquivo de modelo.
 - [ ] **Foto por variação.** O banco já tem `product_variants.image_path`, mas a tela só tem a foto do produto.
   Acrescentar o envio por variação (mesmo fluxo da foto do produto) e usar no orçamento quando houver.
