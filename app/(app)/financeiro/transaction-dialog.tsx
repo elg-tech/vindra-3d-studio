@@ -34,7 +34,7 @@ export function TransactionDialog({ transaction }: { transaction?: ManualTransac
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-md">
+      <DialogContent className="sm:max-w-md">
         {open && <TransactionForm transaction={transaction ?? null} onDone={() => setOpen(false)} />}
       </DialogContent>
     </Dialog>

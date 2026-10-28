@@ -72,7 +72,7 @@ export function SuppliesList({ supplies }: { supplies: Supply[] }) {
       )}
 
       <Dialog open={editing !== null} onOpenChange={(open) => !open && setEditing(null)}>
-        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-md">
+        <DialogContent className="sm:max-w-md">
           {editing !== null && (
             <SupplyForm
               key={editing === "new" ? "new" : editing.id}

@@ -571,7 +571,7 @@ export function Calculator({
       {result && (
         <a
           href="#resultado"
-          className="fixed inset-x-4 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-30 flex items-center justify-between rounded-full border bg-card/95 px-4 py-2 text-sm shadow-lg backdrop-blur lg:hidden"
+          className="fixed inset-x-4 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-30 flex min-h-11 items-center justify-between rounded-full border bg-card/95 px-4 py-2 text-sm shadow-lg backdrop-blur lg:hidden"
         >
           <span className="text-muted-foreground">Custo por peça</span>
           <strong className="tabular-nums">{formatCurrency(result.unit.total)}</strong>

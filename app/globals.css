@@ -77,7 +77,7 @@
   --accent-foreground: #0b5f50;
   --destructive: #c4383d;
   --warning: #8f5a00;
-  --success: #0e7f6b;
+  --success: #0b705e; /* 4,9:1 sobre o fundo verde claro dos selos (Fase 10) */
   --border: #e3ded3;
   --input: #d9d3c6;
   --ring: #109079;
@@ -209,4 +209,42 @@
 }
 [aria-disabled="true"] {
   cursor: not-allowed;
+}
+
+/*
+ * Toque no celular (Fase 10): alvo mínimo de 44 px abaixo de 768 px.
+ * Fora das camadas, como o cursor: vence o h-8/h-7/size-8 dos componentes sem mexer em cada tela.
+ * min-height ganha de height, então o desktop (e o quadro de pedidos a partir de 1024 px) não muda.
+ */
+@media (max-width: 767px) {
+  /* botões pelo data-variant/data-size: como gatilho de diálogo ou menu (asChild) o data-slot vira o do Radix */
+  [data-slot="button"],
+  button[data-variant][data-size],
+  a[data-variant][data-size],
+  [data-slot="input"],
+  [data-slot="select-trigger"],
+  [data-slot="tabs-trigger"],
+  [data-slot="dropdown-menu-item"],
+  [data-slot="dropdown-menu-checkbox-item"],
+  [data-slot="dropdown-menu-radio-item"],
+  [data-slot="select-item"] {
+    min-height: 2.75rem;
+  }
+  [data-variant][data-size^="icon"],
+  [data-slot="tabs-trigger"] {
+    min-width: 2.75rem;
+  }
+  [data-slot="tabs-list"] {
+    height: auto;
+    min-height: 3rem;
+  }
+  /* o switch continua pequeno na tela; a área de toque cresce em volta */
+  [data-slot="switch"] {
+    position: relative;
+  }
+  [data-slot="switch"]::after {
+    content: "";
+    position: absolute;
+    inset: -13px -6px;
+  }
 }

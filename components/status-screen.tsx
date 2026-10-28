@@ -16,8 +16,10 @@ export function StatusScreen({
   /** fora do layout do app (sem menu): ocupa a tela toda e mostra o logo */
   fullScreen?: boolean;
 }) {
+  // fora do layout do app ninguém mais fornece o <main>
+  const Root = fullScreen ? "main" : "div";
   return (
-    <div
+    <Root
       className={cn(
         "flex flex-col items-center justify-center gap-5 px-4 text-center",
         fullScreen ? "min-h-dvh py-10" : "py-16",
@@ -29,7 +31,7 @@ export function StatusScreen({
         <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
         <p className="mx-auto max-w-md text-sm text-muted-foreground">{description}</p>
       </div>
-      <div className="flex flex-wrap justify-center gap-2">{actions}</div>
-    </div>
+      {actions && <div className="flex flex-wrap justify-center gap-2">{actions}</div>}
+    </Root>
   );
 }

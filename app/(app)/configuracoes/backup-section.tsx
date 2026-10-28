@@ -6,6 +6,12 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
+class BackupError extends Error {
+  constructor(message: string | null) {
+    super(message ?? "");
+  }
+}
+
 export function BackupSection() {
   const [busy, setBusy] = useState(false);
 
@@ -13,9 +19,10 @@ export function BackupSection() {
     setBusy(true);
     try {
       const res = await fetch("/configuracoes/backup", { cache: "no-store" });
-      if (!res.ok) throw new Error(await res.text());
+      // a rota responde texto simples com a mensagem; qualquer outra coisa (HTML de erro) vira a mensagem padrão
+      if (!res.ok) throw new BackupError(res.headers.get("Content-Type")?.startsWith("text/plain") ? await res.text() : null);
       // sessão vencida: o proxy redireciona para o login e a resposta vira HTML
-      if (res.headers.get("Content-Type") !== "application/zip") throw new Error("Sua sessão expirou. Entre de novo.");
+      if (res.headers.get("Content-Type") !== "application/zip") throw new BackupError("Sua sessão expirou. Entre de novo.");
       const name = /filename="([^"]+)"/.exec(res.headers.get("Content-Disposition") ?? "")?.[1] ?? "vindra-backup.zip";
       const url = URL.createObjectURL(await res.blob());
       const a = Object.assign(document.createElement("a"), { href: url, download: name });
@@ -23,7 +30,8 @@ export function BackupSection() {
       URL.revokeObjectURL(url);
       toast.success("Backup baixado. Guarde o arquivo fora do computador também (Drive, e-mail).");
     } catch (e) {
-      toast.error(e instanceof Error && e.message ? e.message : "Não foi possível gerar o backup. Tente de novo.");
+      // erro de rede do navegador vem em inglês ("Failed to fetch"): só mostra as mensagens nossas
+      toast.error(e instanceof BackupError && e.message ? e.message : "Não foi possível gerar o backup. Confira a internet e tente de novo.");
     } finally {
       setBusy(false);
     }

@@ -30,7 +30,7 @@ export function CustomerDialog({ customer }: { customer?: Customer }) {
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg">
         {open && <CustomerForm customer={customer ?? null} onDone={() => setOpen(false)} />}
       </DialogContent>
     </Dialog>
