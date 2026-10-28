@@ -21,7 +21,7 @@
 | 6 | Produtos e variações | ✅ concluída | `6dd5665`, `1317450`, `62c4aef` |
 | 7 | Clientes, orçamentos, página pública, PDF, Pix e WhatsApp | ✅ concluída | `cbc64fd` |
 | 8 | Pedidos (kanban), pagamentos, baixa de filamento e falhas | ✅ concluída | `c43a95c`, `e11becc`, `f322f43`, `c99e144` |
-| 9 | Financeiro e dashboard | ✅ concluída (plano em `docs/PLANO-FASE-9.md`) | `f18fac5` |
+| 9 | Financeiro e dashboard | ✅ concluída (plano em `docs/PLANO-FASE-9.md`) | `f18fac5`, ajustes em `f0e77be` |
 | 10 | Polimento e deploy | inclui medir o Lighthouse da página pública na Vercel | |
 
 Antes de cada commit de fase: `npm run lint`, `npm run typecheck`, `npm test` e `npm run build` passando.
@@ -217,6 +217,20 @@ Existe um usuário só para testes locais, com `E2E_EMAIL` e `E2E_PASSWORD` no `
   conforme o tipo, valor > 0, só despesa pode ser fixa.
 - **Resumo de margem dos produtos** saiu da página para `loadProductSummaries` (`lib/product-loaders.ts`), usado por
   `/produtos` e pelos alertas do dashboard.
+- **Cancelar pedido** (ajuste de 28/10/2026): perguntas de escolha única. "As peças chegaram a ser impressas?" só
+  aparece quando houve baixa (sem baixa a resposta não muda nada). "Houve pagamento: devolver ao cliente?" só aparece com
+  pagamento; "Sim" lança na mesma transação (`cancel_order(..., p_refund)`) uma despesa "Estorno" de hoje ligada ao
+  pedido (`transactions.order_id`, com link no Financeiro). O valor é calculado no servidor (`refundAmount`): o que o
+  cliente pagou; pedido de plataforma, total − taxas (o que entrou no caixa).
+- **Excluir pedido** (para pedidos de teste ou lançados por engano; pedido real que não vai acontecer é "Cancelar"):
+  `delete_order` apaga pedido, itens, pagamentos, falhas e estornos, devolve ao carretel a baixa e as perdas por falha e
+  libera o orçamento de origem. Confirmação digitando o número, conferida também no banco (`order_number_mismatch`).
+- **Testes de banco** em `tests/db` (`npm run test:db`, fora do `npm test`): rodam no Supabase de verdade com o
+  usuário de teste, criam os próprios dados e apagam tudo no fim. O `.env.local` é lido direto (o `loadEnvConfig` do
+  Next ignora esse arquivo com `NODE_ENV=test`).
+- **Cursor global** em `app/globals.css`, fora das camadas (vence os utilitários dos componentes): pointer em botões,
+  links, menus, abas, selects, radios e checkboxes; not-allowed em desabilitados; grab nos cards do quadro. A lista de
+  pointer fica em `:where()` (especificidade zero) para as regras de desabilitado e de arrastar vencerem.
 - **Migrações:** o `supabase db push` é bloqueado no modo automático do Claude Code; o Enzo aplica pelo terminal
   (`npm run db:push`) e depois o Claude regenera os tipos.
 
