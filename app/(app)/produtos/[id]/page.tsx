@@ -31,7 +31,7 @@ export default async function ProdutoPage({ params }: { params: Promise<{ id: st
     supabase
       .from("products")
       .select(
-        "id, name, sku, description, image_path, model_source, model_license, model_url, active, product_variants(id, name, sku, cost_sheet_id, active, sort_order, variant_channel_prices(channel_id, price))",
+        "id, name, sku, description, image_path, model_source, model_license, model_url, active, product_variants(id, name, sku, image_path, cost_sheet_id, active, sort_order, variant_channel_prices(channel_id, price))",
       )
       .eq("id", id)
       .maybeSingle(),

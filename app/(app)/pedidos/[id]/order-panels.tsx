@@ -356,7 +356,7 @@ export function CancelOrder({
           <Ban aria-hidden /> Cancelar pedido
         </Button>
       </AlertDialogTrigger>
-      <AlertDialogContent className="max-h-[90dvh] overflow-y-auto">
+      <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Cancelar {number}</AlertDialogTitle>
           <AlertDialogDescription>

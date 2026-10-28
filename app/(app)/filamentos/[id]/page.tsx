@@ -132,6 +132,13 @@ export default async function FilamentoPage({ params }: { params: Promise<{ id: 
               </TableRow>
             </TableHeader>
             <TableBody>
+              {(movements ?? []).length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={4} className="py-6 text-center text-muted-foreground">
+                    Nenhuma movimentação ainda.
+                  </TableCell>
+                </TableRow>
+              )}
               {(movements ?? []).map((m) => (
                 <TableRow key={m.id}>
                   <TableCell className="whitespace-nowrap tabular-nums">{formatDateTime(m.occurred_at)}</TableCell>

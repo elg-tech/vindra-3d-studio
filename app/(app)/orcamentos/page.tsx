@@ -70,7 +70,7 @@ export default async function OrcamentosPage({ searchParams }: { searchParams: P
                   href={f === "todos" ? "/orcamentos" : `/orcamentos?status=${f}`}
                   aria-current={f === filter ? "page" : undefined}
                   className={cn(
-                    "shrink-0 rounded-full border px-3 py-1 text-sm whitespace-nowrap transition-colors",
+                    "shrink-0 rounded-full border px-3 py-1 text-sm whitespace-nowrap transition-colors max-md:py-3",
                     f === filter ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted",
                   )}
                 >

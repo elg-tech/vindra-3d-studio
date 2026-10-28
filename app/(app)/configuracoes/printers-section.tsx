@@ -107,7 +107,7 @@ export function PrintersSection({ printers, energyRate }: { printers: PrinterRow
       )}
 
       <Dialog open={editing !== null} onOpenChange={(open) => !open && setEditing(null)}>
-        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg">
           {editing !== null && (
             <PrinterForm
               key={editing === "new" ? "new" : editing.id}

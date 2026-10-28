@@ -23,13 +23,14 @@ const getQuote = cache(async (token: string) => loadPublicQuote(await createClie
 export async function generateMetadata({ params }: { params: Promise<{ token: string }> }): Promise<Metadata> {
   const { token } = await params;
   const q = await getQuote(token);
-  if (!q) return { title: "Orçamento", robots: { index: false } };
+  if (!q) return { title: "Orçamento", robots: { index: false, follow: false }, referrer: "no-referrer" };
   const title = `Orçamento ${q.number} · ${q.store.name}`;
   const description = `Total ${formatCurrency(q.totals.total)}${q.valid_until ? ` · válido até ${formatDay(q.valid_until)}` : ""}`;
   return {
     title: { absolute: title },
     description,
     robots: { index: false, follow: false },
+    referrer: "no-referrer",
     openGraph: { title, description, type: "website" },
   };
 }

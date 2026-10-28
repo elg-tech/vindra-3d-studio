@@ -30,7 +30,7 @@ export function FilamentDialog({
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent className="sm:max-w-2xl">
         {open && <FilamentForm filament={filament ?? null} brands={brands} onDone={() => setOpen(false)} />}
       </DialogContent>
     </Dialog>

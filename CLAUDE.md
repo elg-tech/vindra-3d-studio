@@ -18,3 +18,13 @@ No fim de cada fase, atualize `docs/PROGRESSO.md` com o hash do commit, as decis
   pediu. Ela ignora o RLS e enxerga a conta de todo mundo. Nunca use por iniciativa própria, nem para "só conferir".
 - O usuário de teste (`E2E_EMAIL`/`E2E_PASSWORD`) serve só para o Playwright e para os testes de banco (`npm run test:db`).
 - Migrações: o Enzo roda `npm run db:push` no terminal dele; avise quando houver migração nova e espere.
+
+## Produção (desde 28/10/2026)
+
+O app está em uso real em <https://vindra-3d-studio.vercel.app>.
+
+- **Push na `main` = deploy em produção.** Trabalhe numa branch (ex.: `fase-10`) e faça push só nela (gera preview
+  na Vercel). Merge na `main` só com o ok do Enzo, depois que ele conferir o preview.
+- **Migração mexe em dados reais:** só aditiva (nada de `DROP` nem `ALTER` destrutivo), com dry-run antes
+  (`supabase db push --linked --dry-run`), e o Enzo roda o `db:push` no terminal dele.
+- **Nunca apague nem altere dados da conta do Enzo.** Testes e prints só com o usuário de teste.

@@ -157,7 +157,7 @@ export function OrderBoard({ orders, spools }: { orders: BoardOrder[]; spools: S
               onClick={() => setMobileColumn(s)}
               aria-pressed={s === mobileColumn}
               className={cn(
-                "shrink-0 rounded-full border px-3 py-1 text-sm whitespace-nowrap transition-colors",
+                "shrink-0 rounded-full border px-3 py-1 text-sm whitespace-nowrap transition-colors max-md:py-3",
                 s === mobileColumn ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted",
               )}
             >
@@ -253,6 +253,9 @@ function SortableCard({ order, dragging, onMove }: { order: BoardOrder; dragging
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
       {...attributes}
+      // o dnd-kit põe role="button", mas o card tem botões e link dentro (botão dentro de botão)
+      role="group"
+      aria-label={`Pedido ${order.number}, arrastável`}
       {...pointerListeners}
       // arrastar pelo teclado só com o foco no card: Enter/Espaço nos botões e no link continuam funcionando
       onKeyDown={(e) => {

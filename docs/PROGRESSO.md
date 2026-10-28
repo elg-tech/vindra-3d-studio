@@ -7,7 +7,7 @@
 > **Quando o prompt e este arquivo divergirem, vale este arquivo.** O prompt é o original;
 > as mudanças combinadas depois estão em "Onde o prompt ficou desatualizado" e em "Decisões".
 
-Última atualização: 27/10/2026 (Fase 9 concluída).
+Última atualização: 28/10/2026 (Fase 10 concluída: **projeto concluído**, em uso real).
 
 ## Fases
 
@@ -22,12 +22,32 @@
 | 7 | Clientes, orçamentos, página pública, PDF, Pix e WhatsApp | ✅ concluída | `cbc64fd` |
 | 8 | Pedidos (kanban), pagamentos, baixa de filamento e falhas | ✅ concluída | `c43a95c`, `e11becc`, `f322f43`, `c99e144` |
 | 9 | Financeiro e dashboard | ✅ concluída (plano em `docs/PLANO-FASE-9.md`) | `f18fac5`, ajustes em `f0e77be` |
-| 10 | Polimento e deploy | plano aprovado em `docs/PLANO-FASE-10.md`; Enzo fazendo o deploy, implementação não começou | |
+| 10 | Polimento (deploy já feito pelo Enzo) | ✅ concluída na branch `fase-10`; merge na `main` depois da conferência do preview | `8e97ca6`, `b74607e`, `5d28822`, `2354740`, `dbe869e`, `4bb5be2`, `aa8110d`, `5970dd5` |
 
 Antes de cada commit de fase: `npm run lint`, `npm run typecheck`, `npm test` e `npm run build` passando.
 O push vem depois que o Enzo confere no navegador.
 No Windows, rode os testes a partir de `C:\dev\vindra` (C maiúsculo): com o terminal em `c:\dev\vindra` o Vitest
 não encontra os arquivos e mostra "no tests" (é o ambiente, não o código).
+
+## Produção
+
+- **Deploy feito pelo Enzo em 28/10/2026:** <https://vindra-3d-studio.vercel.app>, região `gru1`, variáveis
+  `NEXT_PUBLIC_*` configuradas, **sem** `SUPABASE_SERVICE_ROLE_KEY`.
+- Supabase Auth com Site URL e Redirect URLs da Vercel; cadastro público desligado.
+- **Em uso real:** o primeiro orçamento de verdade foi enviado a um cliente pelo WhatsApp e funcionou.
+- Regras de produção (branch, migração só aditiva, dados do Enzo intocáveis) no `CLAUDE.md`.
+
+## Fase 10: escopo final
+
+Pedido do Enzo em 28/10/2026; substitui a lista do `docs/PLANO-FASE-10.md` (o deploy saiu do escopo, o README só
+documenta). Um commit por bloco, na branch `fase-10`:
+1. Segurança e privacidade (cabeçalhos, CSP, noindex, robots, conferência de RLS, segredos e logs).
+2. Robustez (404, `error.tsx`, estados vazios e de carregamento, avisos do build).
+3. Backup ("Exportar meus dados": .zip com um CSV por tabela e um JSON completo).
+4. Foto por variação.
+5. Revisão de UX (1280 e 390).
+6. Performance (imagens, JS da página pública; Lighthouse medido pelo Enzo no preview).
+7. README completo.
 
 ## Onde o prompt ficou desatualizado
 
@@ -234,18 +254,89 @@ Existe um usuário só para testes locais, com `E2E_EMAIL` e `E2E_PASSWORD` no `
 - **Migrações:** o `supabase db push` é bloqueado no modo automático do Claude Code; o Enzo aplica pelo terminal
   (`npm run db:push`) e depois o Claude regenera os tipos.
 
+### Polimento (Fase 10)
+- **CSP sem nonce**, em `next.config.ts`: com nonce todas as páginas teriam de renderizar por requisição.
+  `'unsafe-inline'` em script/style fica pelo next-themes e pelos estilos inline do Radix/Recharts; o ganho está em
+  `connect-src`/`img-src` (só o próprio site e o Supabase), `frame-ancestors 'none'`, `object-src 'none'`,
+  `form-action` e `base-uri`. `vercel.live` só entra no preview (barra de comentários da Vercel).
+  Mais: X-Frame-Options DENY, nosniff, Referrer-Policy, Permissions-Policy e HSTS.
+- **Nada indexado:** `X-Robots-Tag: noindex, nofollow` em toda resposta (inclusive PDF e imagem da prévia) e meta
+  `robots` no layout; só `/login` é indexável. `robots.txt` bloqueia tudo menos `/login` e libera `/o/` só para os
+  leitores de prévia (WhatsApp, Facebook, Telegram), para a prévia do link não quebrar; eles recebem o noindex igual.
+  O proxy não intercepta `/robots.txt` (senão redirecionava para o login). `/o/`: `Referrer-Policy: no-referrer`.
+- **`metadataBase`** = `NEXT_PUBLIC_SITE_URL`: a imagem da prévia do orçamento sempre no domínio oficial.
+- **Conferência de segurança (somente leitura):** as 22 tabelas com RLS e política de dono; funções `security definer`
+  são só gatilhos (revogados de `anon`) e as duas da página pública; bundle do navegador só com a chave
+  `sb_publishable_`; nenhum `console.*` no código.
+- **Telas de erro:** `StatusScreen` com o logo; 404 geral, 404 dentro do app (com menu), 404 e erro do orçamento público
+  sem link para o painel, `error.tsx` (app e raiz) e `global-error.tsx`. Esqueleto de carregamento no formato de cada
+  página (`components/page-skeleton.tsx`).
+- **Backup** (`lib/backup.ts`): Configurações → Backup baixa um .zip com `backup.json` (dados como no banco), um CSV por
+  tabela (BOM, ";", vírgula decimal, sim/não) e LEIA-ME. Leitura paginada de 1000 em 1000. Fotos ficam fora (limite de
+  4,5 MB de resposta da Vercel). Restauração: `scripts/restaurar-backup.ts` gera SQL para o SQL Editor, só acrescenta
+  (`on conflict do nothing`), com gatilhos desligados (`session_replication_role = replica`: com eles ligados o saldo
+  dos carretéis seria somado de novo), sem a coluna gerada `cost_per_gram` e com troca de dono opcional.
+- **Foto por variação:** sem migração (`product_variants.image_path` e o `coalesce` no banco já existiam). O formulário
+  não mandava a foto da variação e o `save_product` a zerava a cada salvamento. O servidor confere a pasta de todas as
+  fotos e apaga as trocadas, removidas, de variações excluídas e todas ao excluir o produto.
+- **Toque de 44 px no celular** por regra global em `app/globals.css` (abaixo de 768 px), pelos atributos dos
+  componentes (`data-slot`; e `data-variant`/`data-size` nos botões usados como gatilho, onde o Radix troca o
+  `data-slot`). Desktop e quadro de pedidos não mudam. Links dentro de texto ficam como estão (exceção do WCAG).
+- **Diálogos** rolam por dentro por padrão (`max-h-[90dvh]`). **Contraste:** `--success` claro = `#0b705e` (4,9:1).
+- **Performance medida** (página pública, celular, comprimido): 239 KB de JS (~140 KB são React/Next), 30 KB de fonte,
+  26 KB de imagens; Recharts, dnd-kit e react-pdf fora dela. Geist Mono sem preload (−23,6 KB de fonte por página).
+  Tirar o `TooltipProvider` (sem uso) **aumentava** o JS em 11,6 KB pela divisão de chunks do Turbopack: ficou.
+- **Avisos do build da Vercel:** sem acesso ao log; o build local (também com `VERCEL=1`) não tem aviso. O conhecido é o
+  `npm warn deprecated eslint@9`: o ESLint 10 quebra o `eslint-plugin-import` do `eslint-config-next` (conflito de
+  peer), então fica o 9 até o `eslint-config-next` suportar o 10.
+
+### Revisão de UX (Fase 10): o que foi encontrado e corrigido
+Varredura automática (axe-core WCAG A/AA, alvos de toque, rolagem horizontal, foco com Tab) em todas as telas, 1280 e
+390 px, temas claro e escuro, com dados temporários do usuário de teste.
+
+| Encontrado | Corrigido |
+|---|---|
+| ~200 controles com 24–32 px no celular (botões, campos, selects, abas, switches, filtros, "Mover para…") | 44 px no celular |
+| Diálogos longos podiam cortar o botão de confirmar no celular | rolam por dentro |
+| Login sem `h1`; telas 404 sem `<main>` | corrigido |
+| Gráfico do dashboard com elemento focável escondido do leitor de tela | foco desligado (a tabela continua) |
+| Abas do cliente no orçamento apontando para painel inexistente | campos dentro dos painéis das abas |
+| Card do quadro com `role=button` contendo botões | `role=group` (arrastar pelo teclado continua) |
+| Verde de sucesso no tema claro com 4,3:1; abas inativas 3,9:1; placeholder fraco | 4,9:1, 5,1:1, placeholder mais escuro |
+| Campo de data e painel de aba sem foco visível | anel de foco |
+| "Close" em inglês nos diálogos (leitor de tela) | "Fechar" |
+| Erro de rede do backup em inglês | mensagem em português |
+| Moeda, data e mensagens de erro | já consistentes (`lib/format.ts`, `dbError`); nada a corrigir |
+
+Resultado final: axe sem violações, sem rolagem horizontal, foco visível em tudo. Sobram só links dentro de texto.
+
 ## Pendências
+
+- [ ] **Lighthouse** (meta > 90): o Enzo mede no preview da branch `fase-10` (página pública no celular e `/login`).
+- [ ] **Avisos do build da Vercel:** colar as 3 linhas do log para conferir (só o do ESLint 9 foi identificado).
+- [ ] **Restauração de backup** só testada até gerar o SQL; ensaiar num projeto Supabase de teste.
+- [ ] **Excluir logo depois de salvar um produto** (~1 s): o `router.refresh` remonta o formulário (`key` com o JSON do
+  produto) e fecha o diálogo de exclusão aberto nesse intervalo. Raro; existe desde a Fase 6.
 
 - [ ] **Conferir o financeiro com pedidos reais.** A conta de teste não tinha pedidos pagos na conferência da
   Fase 9: DRE, gráficos, top 5 e "A receber" com pedidos foram cobertos só pelos testes unitários. Conferir com o
   primeiro mês de vendas (sinal e restante em meses diferentes, um pedido Shopee, uma falha).
-- [ ] **Lighthouse da página pública** (meta > 90): medir na Vercel, na Fase 10.
-
 - [ ] **`.3mf` fatiado real.** O único `.3mf` real testado era um projeto **sem fatiar** (sem tempo nem gramas).
   Fatiar uma mesa multicor, exportar com *Arquivo → Exportar → Exportar arquivo de mesa fatiada*
   (`.gcode.3mf`) e comparar a soma dos filamentos com o total do Bambu Studio (modelo + purga + torre)
   e com a pesagem real. Se não bater, a importação precisa preencher a purga com a diferença.
 - [x] **Impressora A1 x A1 mini:** o Enzo confirmou em 28/10/2026 que é a **A1** (o seed já cadastra a A1). O `.3mf`
   de A1 mini recebido era só um arquivo de modelo.
-- [ ] **Foto por variação.** O banco já tem `product_variants.image_path`, mas a tela só tem a foto do produto.
-  Acrescentar o envio por variação (mesmo fluxo da foto do produto) e usar no orçamento quando houver.
+- [x] **Foto por variação** (Fase 10).
+
+## Próximas ideias
+
+- **Backup automático:** rotina mensal que gera o .zip e manda por e-mail ou para o Google Drive (hoje é manual).
+- **Fotos no backup:** baixar as fotos junto (no navegador, para não bater no limite de resposta da Vercel).
+- **Domínio próprio:** só troca `NEXT_PUBLIC_SITE_URL` e as URLs do Supabase Auth.
+- **Lembrete de orçamento parado:** avisar no dashboard orçamento enviado há X dias sem resposta, com botão de WhatsApp.
+- **Estoque de filamento previsto:** somar as gramas dos pedidos na fila e avisar o carretel que não vai dar.
+- **Relatório mensal em PDF** (DRE e top produtos) para guardar ou mandar ao contador.
+- **Pix com txid por pedido** para conciliar pagamento sem conferir na mão.
+- **Logo claro/escuro com uma imagem só** (hoje as duas baixam; ~13 KB a menos por página).
+- **Segundo projeto Supabase** para desenvolvimento, se o app crescer (hoje local e produção usam o mesmo).

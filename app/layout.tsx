@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { publicEnv } from "@/lib/env";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -13,9 +14,13 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+  // usada em dois lugares do painel: baixa só quando aparece (não pesa na página pública)
+  preload: false,
 });
 
 export const metadata: Metadata = {
+  // links absolutos (imagem da prévia do orçamento no WhatsApp) sempre no domínio oficial
+  metadataBase: new URL(publicEnv.NEXT_PUBLIC_SITE_URL),
   title: {
     default: "Vindra 3D Studio",
     template: "%s · Vindra 3D Studio",
@@ -28,6 +33,8 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
   },
   formatDetection: { telephone: false },
+  // app privado: nada indexado (a página de login libera; ver app/robots.ts)
+  robots: { index: false, follow: false },
 };
 
 export const viewport: Viewport = {

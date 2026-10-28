@@ -28,7 +28,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrency, formatDateTime, formatNumber } from "@/lib/format";
 import { parseDecimal } from "@/lib/numbers";
 import type { ChannelFees } from "@/lib/pricing";
@@ -149,7 +149,8 @@ export function QuoteEditor({
               control={control}
               name="customerMode"
               render={({ field }) => (
-                <Tabs value={field.value} onValueChange={field.onChange}>
+                // os campos de cada modo ficam no painel da aba (aria-controls aponta para conteúdo real)
+                <Tabs value={field.value} onValueChange={field.onChange} className="gap-4">
                   <TabsList className="w-full">
                     <TabsTrigger value="existing" disabled={customers.length === 0}>
                       Cadastrado
@@ -157,47 +158,50 @@ export function QuoteEditor({
                     <TabsTrigger value="new">Novo</TabsTrigger>
                     <TabsTrigger value="none">Sem cliente</TabsTrigger>
                   </TabsList>
+                  <TabsContent value="existing">
+                    <FieldShell label="Cliente" error={e.customerId}>
+                      {({ id, describedBy, invalid }) => (
+                        <Controller
+                          control={control}
+                          name="customerId"
+                          render={({ field }) => (
+                            <Select value={field.value || undefined} onValueChange={field.onChange}>
+                              <SelectTrigger id={id} aria-describedby={describedBy} aria-invalid={invalid} className="w-full">
+                                <SelectValue placeholder="Escolha o cliente" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {customers.map((c) => (
+                                  <SelectItem key={c.id} value={c.id}>
+                                    {c.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        />
+                      )}
+                    </FieldShell>
+                  </TabsContent>
+                  <TabsContent value="new">
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <TextField label="Nome" registration={register("newCustomerName")} error={e.newCustomerName} />
+                      <TextField
+                        label="WhatsApp"
+                        registration={register("newCustomerWhatsapp")}
+                        error={e.newCustomerWhatsapp}
+                        type="tel"
+                        inputMode="tel"
+                        placeholder="(16) 99999-9999"
+                        hint="O cliente é cadastrado ao salvar."
+                      />
+                    </div>
+                  </TabsContent>
+                  <TabsContent value="none" className="text-sm text-muted-foreground">
+                    O orçamento fica sem cliente vinculado.
+                  </TabsContent>
                 </Tabs>
               )}
             />
-            {values.customerMode === "existing" && (
-              <FieldShell label="Cliente" error={e.customerId}>
-                {({ id, describedBy, invalid }) => (
-                  <Controller
-                    control={control}
-                    name="customerId"
-                    render={({ field }) => (
-                      <Select value={field.value || undefined} onValueChange={field.onChange}>
-                        <SelectTrigger id={id} aria-describedby={describedBy} aria-invalid={invalid} className="w-full">
-                          <SelectValue placeholder="Escolha o cliente" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {customers.map((c) => (
-                            <SelectItem key={c.id} value={c.id}>
-                              {c.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                )}
-              </FieldShell>
-            )}
-            {values.customerMode === "new" && (
-              <div className="grid gap-4 sm:grid-cols-2">
-                <TextField label="Nome" registration={register("newCustomerName")} error={e.newCustomerName} />
-                <TextField
-                  label="WhatsApp"
-                  registration={register("newCustomerWhatsapp")}
-                  error={e.newCustomerWhatsapp}
-                  type="tel"
-                  inputMode="tel"
-                  placeholder="(16) 99999-9999"
-                  hint="O cliente é cadastrado ao salvar."
-                />
-              </div>
-            )}
           </CardContent>
         </Card>
 

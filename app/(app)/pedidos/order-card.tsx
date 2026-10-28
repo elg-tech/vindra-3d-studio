@@ -47,7 +47,7 @@ export function OrderCard({
       <Link
         href={`/pedidos/${order.id}`}
         // nunca cortado: em coluna estreita quebra nos hífens (PED-2026-/0001)
-        className="text-xs leading-tight font-medium tabular-nums hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none @[7rem]:text-sm"
+        className="text-xs leading-tight font-medium tabular-nums hover:underline max-md:-my-2 max-md:py-[13px] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none @[7rem]:text-sm"
       >
         {order.number}
       </Link>

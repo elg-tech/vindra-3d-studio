@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/card";
 import { LoginForm } from "./login-form";
 
-export const metadata: Metadata = { title: "Entrar" };
+export const metadata: Metadata = { title: "Entrar", robots: { index: true, follow: false } };
 
 export default async function LoginPage({
   searchParams,
@@ -23,7 +23,9 @@ export default async function LoginPage({
       <Card className="w-full max-w-sm">
         <CardHeader>
           <Logo className="mx-auto mb-4 w-28" priority />
-          <CardTitle className="text-center text-xl">Vindra 3D Studio</CardTitle>
+          <CardTitle className="text-center text-xl">
+            <h1>Vindra 3D Studio</h1>
+          </CardTitle>
           <CardDescription className="text-center">Entre com seu e-mail e senha.</CardDescription>
         </CardHeader>
         <CardContent>

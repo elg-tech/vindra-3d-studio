@@ -30,7 +30,14 @@ export function RevenueChart({ data }: { data: MonthPoint[] }) {
       </ul>
       <div className="h-64" aria-hidden>
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: 0 }} barGap={2} barCategoryGap="20%">
+          <BarChart
+            data={data}
+            margin={{ top: 4, right: 4, bottom: 0, left: 0 }}
+            barGap={2}
+            barCategoryGap="20%"
+            // gráfico só visual (aria-hidden); o leitor de tela usa a tabela. Sem isso o SVG recebe foco.
+            accessibilityLayer={false}
+          >
             <CartesianGrid vertical={false} stroke="var(--border)" />
             <XAxis
               dataKey="month"
