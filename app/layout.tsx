@@ -28,6 +28,8 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
   },
   formatDetection: { telephone: false },
+  // app privado: nada indexado (a página de login libera; ver app/robots.ts)
+  robots: { index: false, follow: false },
 };
 
 export const viewport: Viewport = {

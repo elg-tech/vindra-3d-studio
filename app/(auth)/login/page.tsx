@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/card";
 import { LoginForm } from "./login-form";
 
-export const metadata: Metadata = { title: "Entrar" };
+export const metadata: Metadata = { title: "Entrar", robots: { index: true, follow: false } };
 
 export default async function LoginPage({
   searchParams,
