@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { PageHeader } from "@/components/page-header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { createClient } from "@/lib/supabase/server";
+import { BackupSection } from "./backup-section";
 import { BrandsSection } from "./brands-section";
 import { ChannelsSection } from "./channels-section";
 import { CostSettingsForm } from "./cost-settings-form";
@@ -16,6 +17,7 @@ const TABS = [
   ["impressoras", "Impressoras"],
   ["loja", "Loja"],
   ["marcas", "Marcas"],
+  ["backup", "Backup"],
 ] as const;
 
 export default async function ConfiguracoesPage({
@@ -38,7 +40,7 @@ export default async function ConfiguracoesPage({
 
   return (
     <div className="grid gap-6">
-      <PageHeader title="Configurações" description="Custos, taxas dos canais, impressoras e dados da loja." />
+      <PageHeader title="Configurações" description="Custos, taxas dos canais, impressoras, dados da loja e backup." />
 
       <Tabs defaultValue={tab} className="gap-6">
         <div className="-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
@@ -65,6 +67,9 @@ export default async function ConfiguracoesPage({
         </TabsContent>
         <TabsContent value="marcas">
           <BrandsSection brands={brands.data ?? []} />
+        </TabsContent>
+        <TabsContent value="backup">
+          <BackupSection />
         </TabsContent>
       </Tabs>
     </div>
