@@ -22,12 +22,32 @@
 | 7 | Clientes, orçamentos, página pública, PDF, Pix e WhatsApp | ✅ concluída | `cbc64fd` |
 | 8 | Pedidos (kanban), pagamentos, baixa de filamento e falhas | ✅ concluída | `c43a95c`, `e11becc`, `f322f43`, `c99e144` |
 | 9 | Financeiro e dashboard | ✅ concluída (plano em `docs/PLANO-FASE-9.md`) | `f18fac5`, ajustes em `f0e77be` |
-| 10 | Polimento e deploy | plano aprovado em `docs/PLANO-FASE-10.md`; Enzo fazendo o deploy, implementação não começou | |
+| 10 | Polimento (deploy já feito) | em andamento na branch `fase-10` (escopo em "Fase 10: escopo final") | |
 
 Antes de cada commit de fase: `npm run lint`, `npm run typecheck`, `npm test` e `npm run build` passando.
 O push vem depois que o Enzo confere no navegador.
 No Windows, rode os testes a partir de `C:\dev\vindra` (C maiúsculo): com o terminal em `c:\dev\vindra` o Vitest
 não encontra os arquivos e mostra "no tests" (é o ambiente, não o código).
+
+## Produção
+
+- **Deploy feito pelo Enzo em 28/10/2026:** <https://vindra-3d-studio.vercel.app>, região `gru1`, variáveis
+  `NEXT_PUBLIC_*` configuradas, **sem** `SUPABASE_SERVICE_ROLE_KEY`.
+- Supabase Auth com Site URL e Redirect URLs da Vercel; cadastro público desligado.
+- **Em uso real:** o primeiro orçamento de verdade foi enviado a um cliente pelo WhatsApp e funcionou.
+- Regras de produção (branch, migração só aditiva, dados do Enzo intocáveis) no `CLAUDE.md`.
+
+## Fase 10: escopo final
+
+Pedido do Enzo em 28/10/2026; substitui a lista do `docs/PLANO-FASE-10.md` (o deploy saiu do escopo, o README só
+documenta). Um commit por bloco, na branch `fase-10`:
+1. Segurança e privacidade (cabeçalhos, CSP, noindex, robots, conferência de RLS, segredos e logs).
+2. Robustez (404, `error.tsx`, estados vazios e de carregamento, avisos do build).
+3. Backup ("Exportar meus dados": .zip com um CSV por tabela e um JSON completo).
+4. Foto por variação.
+5. Revisão de UX (1280 e 390).
+6. Performance (imagens, JS da página pública; Lighthouse medido pelo Enzo no preview).
+7. README completo.
 
 ## Onde o prompt ficou desatualizado
 
