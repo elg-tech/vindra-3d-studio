@@ -63,6 +63,7 @@ export function QuoteEditor({
   customers,
   catalog,
   directFees,
+  directCreditFees,
   taxPct,
   storeName,
   siteUrl,
@@ -73,6 +74,7 @@ export function QuoteEditor({
   customers: CustomerOption[];
   catalog: QuoteCatalogOption[];
   directFees: ChannelFees;
+  directCreditFees: ChannelFees | null;
   taxPct: number;
   storeName: string;
   siteUrl: string;
@@ -111,6 +113,8 @@ export function QuoteEditor({
   };
   const totals = quoteTotals(amounts);
   const profit = quoteProfit(amounts, directFees, taxPct);
+  // lucro no Pix é o padrão; ao lado, o mesmo orçamento pago no crédito
+  const creditProfit = directCreditFees ? quoteProfit(amounts, directCreditFees, taxPct) : null;
 
   function addFromCatalog(value: string) {
     const option = catalog.find((o) => `${o.kind}:${o.id}` === value);
@@ -416,7 +420,7 @@ export function QuoteEditor({
               <dl className="grid grid-cols-[1fr_auto] gap-y-1">
                 <dt className="text-muted-foreground">Custo das peças</dt>
                 <dd className="text-right tabular-nums">{profit.itemsCost === null ? "—" : formatCurrency(profit.itemsCost)}</dd>
-                <dt className="text-muted-foreground">Taxas e imposto</dt>
+                <dt className="text-muted-foreground">Taxas (Pix) e imposto</dt>
                 <dd className="text-right tabular-nums">−{formatCurrency(profit.channelFees + profit.tax)}</dd>
                 <dt className="font-medium">Lucro</dt>
                 <dd
@@ -431,6 +435,11 @@ export function QuoteEditor({
                   )}
                 </dd>
               </dl>
+              {creditProfit?.profit != null && (
+                <p className={cn("text-xs tabular-nums", creditProfit.profit < 0 ? "text-destructive" : "text-muted-foreground")}>
+                  no crédito: lucro {formatCurrency(creditProfit.profit)} (taxa {formatCurrency(creditProfit.channelFees)})
+                </p>
+              )}
               {profit.itemsCost === null && amounts.items.length > 0 && (
                 <p className="text-xs text-muted-foreground">Item avulso ou sem ficha: lucro não calculado.</p>
               )}

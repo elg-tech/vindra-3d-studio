@@ -72,14 +72,8 @@ export async function loadManualOrderData(supabase: Supabase) {
     ...sheets.map((s): OrderCatalogOption => ({ kind: "sheet", id: s.id, label: s.name, prices: suggestedFor(costOf(s.id)) })),
   ];
 
-  const channels: OrderChannel[] = ctx.channels.map((c) => ({
-    id: c.id,
-    name: c.name,
-    kind: c.kind,
-    commissionPct: c.commission_pct,
-    extraPct: c.extra_pct,
-    fixedFee: c.fixed_fee,
-  }));
+  // Venda direta: taxas do Pix (padrão); a taxa real entra em cada pagamento, pela forma usada
+  const channels: OrderChannel[] = ctx.channels.map((c) => ({ id: c.id, name: c.name, kind: c.kind, ...channelFees(c) }));
 
   return { options, channels, customers: customers ?? [] };
 }

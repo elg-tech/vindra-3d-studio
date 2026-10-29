@@ -1,6 +1,6 @@
 import "server-only";
 import { type CatalogSheet, loadSheets } from "@/lib/catalog";
-import { type PricingContext, channelFees, evaluateSheet } from "@/lib/cost-sheet";
+import { type PricingContext, channelFees, creditChannelFees, evaluateSheet } from "@/lib/cost-sheet";
 import { type ChannelFees, suggestPrice } from "@/lib/pricing";
 import { loadPricingContext } from "@/lib/pricing-context";
 import type { createClient } from "@/lib/supabase/server";
@@ -21,8 +21,10 @@ export type QuoteCatalogOption = {
 
 export type QuoteCatalog = {
   options: QuoteCatalogOption[];
-  /** Taxas da venda direta (Pix/maquininha) para o lucro do orçamento. */
+  /** Taxas da venda direta no Pix (padrão) para o lucro do orçamento. */
   directFees: ChannelFees;
+  /** Taxas da venda direta no cartão de crédito, para o "no crédito: lucro R$ X". */
+  directCreditFees: ChannelFees | null;
   taxPct: number;
 };
 
@@ -45,6 +47,7 @@ export async function loadQuoteCatalog(supabase: Supabase): Promise<QuoteCatalog
 
   const direct = ctx.channels.find((c) => c.kind === "direct");
   const directFees: ChannelFees = direct ? channelFees(direct) : { commissionPct: null, extraPct: null, fixedFee: null };
+  const directCreditFees = direct ? creditChannelFees(direct) : null;
   const { tax_pct, default_margin_pct, rounding_rule } = ctx.settings;
   const suggested = (cost: number | null) => {
     if (cost === null) return null;
@@ -75,5 +78,5 @@ export async function loadQuoteCatalog(supabase: Supabase): Promise<QuoteCatalog
     return { kind: "sheet", id: s.id, label: s.name, price: suggested(cost), cost };
   });
 
-  return { options: [...variantOptions, ...sheetOptions], directFees, taxPct: tax_pct };
+  return { options: [...variantOptions, ...sheetOptions], directFees, directCreditFees, taxPct: tax_pct };
 }

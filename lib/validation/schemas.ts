@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { FILAMENT_STATUS, MATERIALS } from "@/lib/filaments";
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from "@/lib/finance";
+import { PAYMENT_METHODS } from "@/lib/payment-fees";
 import { PIX_KEY_TYPES, normalizePixKey } from "@/lib/pix";
 import { MODEL_SOURCES } from "@/lib/products";
 import { whatsappNumber } from "@/lib/quotes";
@@ -69,6 +70,21 @@ export const channelSchema = z.object({
   commission_pct: optionalPercent(),
   extra_pct: optionalPercent(),
   fixed_fee: optionalDecimal({ min: 0 }),
+  active: z.boolean(),
+});
+
+// Venda direta: % e taxa fixa por forma de pagamento; campo vazio = 0 (Pix direto na conta não cobra nada)
+const zeroIfEmpty = (field: ReturnType<typeof optionalDecimal>) => field.transform((v) => v ?? 0);
+export const directChannelSchema = z.object({
+  id: z.uuid(),
+  pix_pct: zeroIfEmpty(optionalPercent()),
+  pix_fixed: zeroIfEmpty(optionalDecimal({ min: 0 })),
+  cash_pct: zeroIfEmpty(optionalPercent()),
+  cash_fixed: zeroIfEmpty(optionalDecimal({ min: 0 })),
+  debit_pct: zeroIfEmpty(optionalPercent()),
+  debit_fixed: zeroIfEmpty(optionalDecimal({ min: 0 })),
+  credit_pct: zeroIfEmpty(optionalPercent()),
+  credit_fixed: zeroIfEmpty(optionalDecimal({ min: 0 })),
   active: z.boolean(),
 });
 
@@ -405,7 +421,7 @@ export const markPaymentSchema = z.object({
   orderId: z.uuid(),
   kind: z.enum(["deposit", "balance", "full"]),
   paidOn: isoDate("Informe a data do pagamento."),
-  method: z.enum(["pix", "cash", "card"], "Escolha a forma de pagamento."),
+  method: z.enum(PAYMENT_METHODS, "Escolha a forma de pagamento."),
 });
 
 export const consumeSchema = z.object({

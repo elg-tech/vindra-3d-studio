@@ -479,6 +479,11 @@ function ChannelRow({
           </span>
         )}
         {suggested && !suggested.ok && <span className="text-destructive">{suggested.error}</span>}
+        {pricing.creditProfit && (
+          <span className="text-muted-foreground tabular-nums">
+            no crédito: lucro {formatCurrency(pricing.creditProfit.profit)}
+          </span>
+        )}
         {error && <span className="w-full text-xs text-destructive">{error}</span>}
       </div>
     </div>

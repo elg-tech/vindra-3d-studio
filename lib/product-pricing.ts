@@ -1,4 +1,4 @@
-import { type PricingContext, type SheetData, channelFees, evaluateSheet } from "@/lib/cost-sheet";
+import { type PricingContext, type SheetData, channelFees, creditChannelFees, evaluateSheet } from "@/lib/cost-sheet";
 import { type ProfitResult, type SuggestedPrice, isChannelConfigured, profitAtPrice, suggestPrice } from "@/lib/pricing";
 
 /**
@@ -43,6 +43,11 @@ export type ChannelPricing = {
   profit: ProfitResult | null;
   /** Preço sugerido com a margem padrão; null sem custo. */
   suggested: SuggestedPrice | null;
+  /**
+   * Venda direta: lucro se o cliente pagar no cartão de crédito (no preço atual, ou no sugerido sem preço).
+   * O lucro principal é o do Pix. null nos outros canais ou sem custo.
+   */
+  creditProfit: ProfitResult | null;
 };
 
 export type VariantPricing = {
@@ -79,11 +84,14 @@ export function priceVariant(sheet: SheetData | null, prices: VariantPrices, ctx
     const price = raw !== null && raw !== undefined && raw > 0 ? raw : null;
 
     if (unitCost === null) {
-      return { channelId: c.id, status: blocked, feesConfigured, price, profit: null, suggested: null };
+      return { channelId: c.id, status: blocked, feesConfigured, price, profit: null, suggested: null, creditProfit: null };
     }
     const suggested = suggestPrice(unitCost, fees, tax_pct, default_margin_pct, rounding_rule);
+    const credit = creditChannelFees(c);
+    const reference = price ?? (suggested.ok ? suggested.price : null);
+    const creditProfit = credit && reference !== null ? profitAtPrice(reference, unitCost, credit, tax_pct) : null;
     if (price === null) {
-      return { channelId: c.id, status: "no_price", feesConfigured, price, profit: null, suggested };
+      return { channelId: c.id, status: "no_price", feesConfigured, price, profit: null, suggested, creditProfit };
     }
     const profit = profitAtPrice(price, unitCost, fees, tax_pct);
     const status: ChannelStatus =
@@ -94,7 +102,7 @@ export function priceVariant(sheet: SheetData | null, prices: VariantPrices, ctx
           : feesConfigured
             ? "ok"
             : "fees_not_configured";
-    return { channelId: c.id, status, feesConfigured, price, profit, suggested };
+    return { channelId: c.id, status, feesConfigured, price, profit, suggested, creditProfit };
   });
 
   return { unitCost, warnings, channels, worst: worstStatus(channels.map((c) => c.status)) };

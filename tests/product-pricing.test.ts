@@ -15,6 +15,8 @@ const spool = (over: Partial<ContextSpool>): ContextSpool => ({
 });
 
 // Shopee 20% + R$ 4; TikTok com taxas em branco; Direto 5%. Sem imposto.
+const noRates = { pix_pct: 0, pix_fixed: 0, cash_pct: 0, cash_fixed: 0, debit_pct: 0, debit_fixed: 0, credit_pct: 0, credit_fixed: 0 };
+
 const ctx: PricingContext = {
   settings: {
     energy_rate_kwh: 0.8,
@@ -27,9 +29,10 @@ const ctx: PricingContext = {
   },
   printers: [],
   channels: [
-    { id: "shopee", name: "Shopee", kind: "shopee", commission_pct: 20, extra_pct: null, fixed_fee: 4 },
-    { id: "tiktok", name: "TikTok Shop", kind: "tiktok", commission_pct: null, extra_pct: null, fixed_fee: null },
-    { id: "direto", name: "Venda direta", kind: "direct", commission_pct: 5, extra_pct: null, fixed_fee: null },
+    { id: "shopee", name: "Shopee", kind: "shopee", commission_pct: 20, extra_pct: null, fixed_fee: 4, ...noRates },
+    { id: "tiktok", name: "TikTok Shop", kind: "tiktok", commission_pct: null, extra_pct: null, fixed_fee: null, ...noRates },
+    // Venda direta: a calculadora usa o Pix (5% aqui, para testar); o crédito vai ao lado
+    { id: "direto", name: "Venda direta", kind: "direct", commission_pct: null, extra_pct: null, fixed_fee: null, ...noRates, pix_pct: 5, credit_pct: 9 },
   ],
   spools: [
     spool({}),
@@ -72,6 +75,18 @@ describe("priceVariant", () => {
     // 30 − 1,50 − 11 = 17,50
     expect(channel(v, "direto").status).toBe("ok");
     expect(channel(v, "direto").profit?.profit).toBeCloseTo(17.5, 6);
+    // no crédito (9%): 30 − 2,70 − 11 = 16,30; outros canais não têm o "no crédito"
+    expect(channel(v, "direto").creditProfit?.profit).toBeCloseTo(16.3, 6);
+    expect(shopee.creditProfit).toBeNull();
+  });
+
+  it("sem preço, o lucro no crédito vem do preço sugerido", () => {
+    const v = priceVariant(sheet(), {}, ctx);
+    const direto = channel(v, "direto");
+    expect(direto.suggested?.ok).toBe(true);
+    const price = direto.suggested?.ok ? direto.suggested.price : 0;
+    expect(direto.creditProfit?.price).toBe(price);
+    expect(direto.creditProfit?.profit).toBeCloseTo(price - price * 0.09 - 11, 6);
   });
 
   it("prejuízo e abaixo da margem mínima", () => {

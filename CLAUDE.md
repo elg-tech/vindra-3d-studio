@@ -1,5 +1,7 @@
 # Vindra 3D Studio
 
+**Responda sempre em português.**
+
 Antes de qualquer coisa, leia `docs/PROGRESSO.md` (fases, decisões e pendências) e
 `docs/PROMPT_VINDRA_3D.md` (prompt mestre com as fases e as regras de trabalho).
 

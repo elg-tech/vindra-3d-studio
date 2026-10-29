@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { type PricingContext, channelFees as fees } from "@/lib/cost-sheet";
+import { type ContextChannel, type PricingContext, creditChannelFees, channelFees as fees } from "@/lib/cost-sheet";
 import { formatCurrency } from "@/lib/format";
 import { parseDecimal } from "@/lib/numbers";
 import {
@@ -21,13 +21,27 @@ import { cn } from "@/lib/utils";
 
 const pctLabel = (v: number) => `${v.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
 
-function ProfitLines({ r, minMarginPct }: { r: ProfitResult; minMarginPct: number }) {
+/** Venda direta: o lucro principal é no Pix; este é o mesmo preço pago no cartão de crédito. */
+function creditProfitAt(c: ContextChannel, price: number, unitCost: number, taxPct: number): ProfitResult | null {
+  const credit = creditChannelFees(c);
+  return credit ? profitAtPrice(price, unitCost, credit, taxPct) : null;
+}
+
+function ProfitLines({
+  r,
+  minMarginPct,
+  credit,
+}: {
+  r: ProfitResult;
+  minMarginPct: number;
+  credit?: ProfitResult | null;
+}) {
   const loss = r.profit < 0;
   const belowMin = !loss && r.marginPct < minMarginPct;
   return (
     // sem gap-x: o espaço entre colunas cortaria a linha acima de "Lucro"; o respiro fica no pl-4 dos valores
     <dl className="grid grid-cols-[auto_1fr] gap-y-1 text-sm">
-      <dt className="text-muted-foreground">Taxas</dt>
+      <dt className="text-muted-foreground">{credit ? "Taxas (Pix)" : "Taxas"}</dt>
       <dd className="pl-4 text-right tabular-nums">−{formatCurrency(r.channelFees)}</dd>
       {r.tax > 0 && (
         <>
@@ -49,6 +63,11 @@ function ProfitLines({ r, minMarginPct }: { r: ProfitResult; minMarginPct: numbe
       {(loss || belowMin) && (
         <dd className={cn("col-span-2 text-xs", loss ? "text-destructive" : "text-warning")}>
           {loss ? "Prejuízo neste preço." : `Abaixo da margem mínima (${pctLabel(minMarginPct)}).`}
+        </dd>
+      )}
+      {credit && (
+        <dd className={cn("col-span-2 text-xs tabular-nums", credit.profit < 0 ? "text-destructive" : "text-muted-foreground")}>
+          no crédito: lucro {formatCurrency(credit.profit)} (taxa {formatCurrency(credit.channelFees)})
         </dd>
       )}
     </dl>
@@ -101,7 +120,7 @@ export function ChannelPrices({
                   {blockedMessage ?? "Preencha filamento e tempo para ver o preço."}
                 </p>
               ) : r.ok ? (
-                <ProfitLines r={r} minMarginPct={min_margin_pct} />
+                <ProfitLines r={r} minMarginPct={min_margin_pct} credit={creditProfitAt(c, r.price, r.unitCost, tax_pct)} />
               ) : (
                 <p role="alert" className="flex gap-2 text-sm text-destructive">
                   <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
@@ -179,7 +198,11 @@ function ReverseMode({
         </div>
         <div aria-live="polite">
           {result ? (
-            <ProfitLines r={result} minMarginPct={ctx.settings.min_margin_pct} />
+            <ProfitLines
+              r={result}
+              minMarginPct={ctx.settings.min_margin_pct}
+              credit={channel ? creditProfitAt(channel, result.price, result.unitCost, ctx.settings.tax_pct) : null}
+            />
           ) : (
             <p className="text-sm text-muted-foreground">
               {unitCost === null

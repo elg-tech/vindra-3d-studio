@@ -127,8 +127,8 @@ export function queueMinutes(orders: QueueOrder[], now = new Date()): number {
 // Pagamento
 // ---------------------------------------------------------------
 export type PaymentKind = "deposit" | "balance" | "full";
-export type PaymentMethod = "pix" | "cash" | "card";
-export const PAYMENT_METHOD_LABEL: Record<PaymentMethod, string> = { pix: "Pix", cash: "Dinheiro", card: "Cartão" };
+// formas de pagamento e taxas por forma: lib/payment-fees.ts
+export { PAYMENT_METHOD_LABEL, type PaymentMethod } from "@/lib/payment-fees";
 export const PAYMENT_KIND_LABEL: Record<PaymentKind, string> = { deposit: "Sinal", balance: "Restante", full: "Pagamento" };
 
 export type OrderPayment = { kind: PaymentKind; amount: number; paidOn: string | null };

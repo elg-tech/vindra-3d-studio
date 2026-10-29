@@ -30,15 +30,16 @@ const remaining = async () => {
   return data?.remaining_g;
 };
 
-async function createTestOrder() {
+async function createTestOrder(opts: { channelId?: string; channelFees?: number; fromQuote?: boolean } = {}) {
   const { data, error } = await db.rpc("create_order", {
     p_order: {
-      quoteId,
+      quoteId: opts.fromQuote === false ? null : quoteId,
+      channelId: opts.channelId ?? null,
       status: "awaiting_payment",
       shippingCost: 0,
       discountAmount: 0,
       totalAmount: 100,
-      channelFees: 0,
+      channelFees: opts.channelFees ?? 0,
       items: [{ description: "Peça de teste", quantity: 1, unitPrice: 100, unitCost: 30, unitLaborCost: 10 }],
       payments: [
         { kind: "deposit", amount: 40 },
@@ -132,5 +133,48 @@ describe("cancelar e excluir pedido (banco)", () => {
     expect(await remaining()).toBe(1000);
     expect((await db.from("transactions").select("id").eq("order_id", order.id)).data).toHaveLength(0);
     await db.rpc("delete_order", { p_order_id: order.id, p_number: order.number });
+  }, 60_000);
+
+  it("Venda direta: taxa por pagamento (sinal no Pix, restante no crédito) e desfazer", async () => {
+    const { data: channels } = await db.from("sales_channels").select("id, kind");
+    const direct = channels!.find((c) => c.kind === "direct")!;
+    const other = channels!.find((c) => c.kind !== "direct")!;
+    const order = await createTestOrder({ channelId: direct.id, fromQuote: false });
+    const fees = async () => (await db.from("orders").select("channel_fees").eq("id", order.id).single()).data?.channel_fees;
+    const payment = async (kind: string) =>
+      (await db.from("order_payments").select("method, fee_amount").eq("order_id", order.id).eq("kind", kind).single()).data;
+
+    let r = await db.rpc("set_order_payment", { p_order_id: order.id, p_kind: "deposit", p_paid_on: "2026-10-28", p_method: "pix", p_fee: 0 });
+    expect(r.error).toBeNull();
+    r = await db.rpc("set_order_payment", { p_order_id: order.id, p_kind: "balance", p_paid_on: "2026-10-29", p_method: "credit", p_fee: 2.99 });
+    expect(r.error).toBeNull();
+    expect(await payment("balance")).toEqual({ method: "credit", fee_amount: 2.99 });
+    expect(await fees()).toBe(2.99);
+
+    // desfazer o restante tira a taxa dele
+    r = await db.rpc("set_order_payment", {
+      p_order_id: order.id,
+      p_kind: "balance",
+      p_paid_on: null as unknown as string,
+      p_method: null as unknown as string,
+      p_fee: null as unknown as number,
+    });
+    expect(r.error).toBeNull();
+    expect(await payment("balance")).toEqual({ method: null, fee_amount: null });
+    expect(await fees()).toBe(0);
+
+    // forma inválida é recusada; "card" (registro antigo) continua aceito
+    r = await db.rpc("set_order_payment", { p_order_id: order.id, p_kind: "balance", p_paid_on: "2026-10-29", p_method: "boleto", p_fee: 0 });
+    expect(r.error).not.toBeNull();
+    const legacy = await db.from("order_payments").update({ paid_on: "2026-10-29", method: "card" }).eq("order_id", order.id).eq("kind", "balance");
+    expect(legacy.error).toBeNull();
+    await db.rpc("delete_order", { p_order_id: order.id, p_number: order.number });
+
+    // outro canal: a taxa do pedido não muda ao marcar pagamento
+    const shop = await createTestOrder({ channelId: other.id, channelFees: 12.5, fromQuote: false });
+    r = await db.rpc("set_order_payment", { p_order_id: shop.id, p_kind: "deposit", p_paid_on: "2026-10-28", p_method: "pix", p_fee: null as unknown as number });
+    expect(r.error).toBeNull();
+    expect((await db.from("orders").select("channel_fees").eq("id", shop.id).single()).data?.channel_fees).toBe(12.5);
+    await db.rpc("delete_order", { p_order_id: shop.id, p_number: shop.number });
   }, 60_000);
 });

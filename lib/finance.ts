@@ -112,7 +112,8 @@ export type FinanceOrder = {
   consumedAt: string | null;
   channelName: string | null;
   channelKind: string | null;
-  payments: { kind: PaymentKind; amount: number; paidOn: string | null }[];
+  /** fee: taxa gravada no pagamento (Venda direta, pela forma usada); null fora dela ou em registro antigo. */
+  payments: { kind: PaymentKind; amount: number; paidOn: string | null; fee?: number | null }[];
   items: FinanceItem[];
 };
 
@@ -175,6 +176,22 @@ export function splitFees(fees: number, amounts: number[]): number[] {
   return shares;
 }
 
+/**
+ * Taxa de cada pagamento. Venda direta com a taxa gravada em todos os pagamentos recebidos: a taxa real de cada um
+ * (sinal no Pix e restante no crédito = taxa só no restante). Senão (outros canais, registros antigos): a taxa do
+ * pedido dividida na proporção do valor.
+ */
+export function paymentFees(o: Pick<FinanceOrder, "channelKind" | "channelFees" | "payments">): number[] {
+  const paid = o.payments.filter((p) => p.paidOn);
+  if (o.channelKind === "direct" && paid.length > 0 && paid.every((p) => p.fee !== null && p.fee !== undefined)) {
+    return o.payments.map((p) => (p.paidOn ? round2(p.fee ?? 0) : 0));
+  }
+  return splitFees(
+    o.channelFees,
+    o.payments.map((p) => p.amount),
+  );
+}
+
 /** Uma receita por pagamento recebido; pedido de plataforma, uma pelo total na data do pedido. */
 export function revenueEntries(orders: FinanceOrder[]): FinanceEntry[] {
   const entries: FinanceEntry[] = [];
@@ -195,10 +212,7 @@ export function revenueEntries(orders: FinanceOrder[]): FinanceEntry[] {
       });
       continue;
     }
-    const fees = splitFees(
-      o.channelFees,
-      o.payments.map((p) => p.amount),
-    );
+    const fees = paymentFees(o);
     o.payments.forEach((p, i) => {
       if (!p.paidOn) return;
       entries.push({

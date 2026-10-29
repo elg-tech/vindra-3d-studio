@@ -489,6 +489,7 @@ export type Database = {
         Row: {
           amount: number
           created_at: string
+          fee_amount: number | null
           id: string
           kind: string
           method: string | null
@@ -500,6 +501,7 @@ export type Database = {
         Insert: {
           amount: number
           created_at?: string
+          fee_amount?: number | null
           id?: string
           kind: string
           method?: string | null
@@ -511,6 +513,7 @@ export type Database = {
         Update: {
           amount?: number
           created_at?: string
+          fee_amount?: number | null
           id?: string
           kind?: string
           method?: string | null
@@ -986,40 +989,64 @@ export type Database = {
       sales_channels: {
         Row: {
           active: boolean
+          cash_fixed: number
+          cash_pct: number
           commission_pct: number | null
           created_at: string
+          credit_fixed: number
+          credit_pct: number
+          debit_fixed: number
+          debit_pct: number
           extra_pct: number | null
           fixed_fee: number | null
           id: string
           kind: string
           name: string
           owner_id: string
+          pix_fixed: number
+          pix_pct: number
           sort_order: number
           updated_at: string
         }
         Insert: {
           active?: boolean
+          cash_fixed?: number
+          cash_pct?: number
           commission_pct?: number | null
           created_at?: string
+          credit_fixed?: number
+          credit_pct?: number
+          debit_fixed?: number
+          debit_pct?: number
           extra_pct?: number | null
           fixed_fee?: number | null
           id?: string
           kind: string
           name: string
           owner_id?: string
+          pix_fixed?: number
+          pix_pct?: number
           sort_order?: number
           updated_at?: string
         }
         Update: {
           active?: boolean
+          cash_fixed?: number
+          cash_pct?: number
           commission_pct?: number | null
           created_at?: string
+          credit_fixed?: number
+          credit_pct?: number
+          debit_fixed?: number
+          debit_pct?: number
           extra_pct?: number | null
           fixed_fee?: number | null
           id?: string
           kind?: string
           name?: string
           owner_id?: string
+          pix_fixed?: number
+          pix_pct?: number
           sort_order?: number
           updated_at?: string
         }
@@ -1274,6 +1301,16 @@ export type Database = {
       }
       save_product: { Args: { p_product: Json }; Returns: string }
       save_quote: { Args: { p_quote: Json }; Returns: string }
+      set_order_payment: {
+        Args: {
+          p_fee: number
+          p_kind: string
+          p_method: string
+          p_order_id: string
+          p_paid_on: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
