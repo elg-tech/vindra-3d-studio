@@ -313,7 +313,7 @@ Varredura automática (axe-core WCAG A/AA, alvos de toque, rolagem horizontal, f
 
 Resultado final: axe sem violações, sem rolagem horizontal, foco visível em tudo. Sobram só links dentro de texto.
 
-### Taxa por forma de pagamento (branch `taxas-pagamento`, 29/10/2026)
+### Taxa por forma de pagamento (commit `bdfc77b`, merge `035032e` em 29/10/2026)
 Problema: a Venda direta tinha uma taxa só ("Maquininha/Pix"), calculada no pedido inteiro ao criar; um pedido pago
 no Pix ficava com a taxa da maquininha.
 - **Venda direta com taxa por forma:** Pix, Dinheiro, Cartão de débito e Cartão de crédito, cada uma com % e taxa fixa
@@ -334,8 +334,9 @@ no Pix ficava com a taxa da maquininha.
 
 ## Pendências
 
-- [ ] **Taxa por pagamento:** aplicar a migração `20261102120000_taxa_por_pagamento` (Enzo), regenerar os tipos
-  (`npm run db:types`), rodar `npm run test:db`, conferir o preview, merge e então a correção dos pedidos antigos.
+- [ ] **Taxa por pagamento — correção dos pedidos antigos:** migração aplicada, tipos regenerados, `test:db` ok,
+  preview conferido pelo Enzo (taxas configuradas) e merge feitos em 29/10/2026. Falta o Enzo rodar a prévia
+  (`docs/sql/2026-10-taxa-por-pagamento-previa.sql`), responder débito/crédito dos "cartão" e aprovar os UPDATEs.
 
 - [x] **Lighthouse da página pública `/o/`:** 100/100/100, SEO 66 intencional (ver "Polimento (Fase 10)").
 - [ ] **Lighthouse do `/login`:** falta o Enzo mandar as notas.
