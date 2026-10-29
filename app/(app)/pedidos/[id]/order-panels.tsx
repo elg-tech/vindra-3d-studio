@@ -25,6 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type { ActionResult } from "@/lib/actions";
 import { formatCurrency, formatGrams } from "@/lib/format";
 import type { SpoolOption } from "@/lib/order-loaders";
+import { PAYMENT_METHODS, type PaymentRates, type SelectablePaymentMethod, paymentFee, rateLabel } from "@/lib/payment-fees";
 import {
   BOARD_STATUSES,
   type BoardStatus,
@@ -86,11 +87,20 @@ export function StatusPanel({ order, status, spools }: { order: MovableOrder; st
 // ---------------------------------------------------------------
 // Pagamentos
 // ---------------------------------------------------------------
-export type PaymentRow = { kind: PaymentKind; amount: number; paidOn: string | null; method: PaymentMethod | null };
+export type PaymentRow = {
+  kind: PaymentKind;
+  amount: number;
+  paidOn: string | null;
+  method: PaymentMethod | null;
+  /** Taxa cobrada no pagamento (Venda direta); null fora dela ou em registro antigo. */
+  fee: number | null;
+};
 
-export function PaymentsPanel({ orderId, payments, paidByPlatform, channelName, cancelled }: {
+export function PaymentsPanel({ orderId, payments, rates, paidByPlatform, channelName, cancelled }: {
   orderId: string;
   payments: PaymentRow[];
+  /** Taxas por forma de pagamento da Venda direta; null nos outros canais. */
+  rates: PaymentRates | null;
   paidByPlatform: boolean;
   channelName: string | null;
   cancelled: boolean;
@@ -116,6 +126,7 @@ export function PaymentsPanel({ orderId, payments, paidByPlatform, channelName, 
                   <span className="flex items-center gap-1.5">
                     <CheckCircle2 className="size-4 text-success" aria-hidden />
                     Pago em {formatDay(p.paidOn)} · {p.method ? PAYMENT_METHOD_LABEL[p.method] : ""}
+                    {p.fee !== null && <span className="tabular-nums"> · taxa {formatCurrency(p.fee)}</span>}
                   </span>
                   {!cancelled && (
                     <Button
@@ -130,7 +141,7 @@ export function PaymentsPanel({ orderId, payments, paidByPlatform, channelName, 
                   )}
                 </div>
               ) : (
-                !cancelled && <MarkPaymentDialog orderId={orderId} kind={p.kind} amount={p.amount} />
+                !cancelled && <MarkPaymentDialog orderId={orderId} kind={p.kind} amount={p.amount} rates={rates} />
               )}
             </div>
           ))
@@ -140,11 +151,23 @@ export function PaymentsPanel({ orderId, payments, paidByPlatform, channelName, 
   );
 }
 
-function MarkPaymentDialog({ orderId, kind, amount }: { orderId: string; kind: PaymentKind; amount: number }) {
+function MarkPaymentDialog({
+  orderId,
+  kind,
+  amount,
+  rates,
+}: {
+  orderId: string;
+  kind: PaymentKind;
+  amount: number;
+  rates: PaymentRates | null;
+}) {
   const id = useId();
   const [open, setOpen] = useState(false);
   const [paidOn, setPaidOn] = useState(todayIso());
-  const [method, setMethod] = useState<PaymentMethod>("pix");
+  const [method, setMethod] = useState<SelectablePaymentMethod>("pix");
+  // prevista: o servidor recalcula com as taxas do momento ao confirmar
+  const fee = rates ? paymentFee(amount, method, rates) : null;
   const { run, isPending } = useRun();
   const label = kind === "deposit" ? "Marcar sinal pago" : kind === "balance" ? "Marcar restante pago" : "Marcar pago";
   return (
@@ -168,12 +191,12 @@ function MarkPaymentDialog({ orderId, kind, amount }: { orderId: string; kind: P
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor={`${id}-method`}>Forma</Label>
-            <Select value={method} onValueChange={(v) => setMethod(v as PaymentMethod)}>
+            <Select value={method} onValueChange={(v) => setMethod(v as SelectablePaymentMethod)}>
               <SelectTrigger id={`${id}-method`} className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {(Object.keys(PAYMENT_METHOD_LABEL) as PaymentMethod[]).map((m) => (
+                {PAYMENT_METHODS.map((m) => (
                   <SelectItem key={m} value={m}>
                     {PAYMENT_METHOD_LABEL[m]}
                   </SelectItem>
@@ -181,6 +204,14 @@ function MarkPaymentDialog({ orderId, kind, amount }: { orderId: string; kind: P
               </SelectContent>
             </Select>
           </div>
+          {rates && fee !== null && (
+            <p className="rounded-lg bg-muted/50 px-3 py-2 text-sm tabular-nums" aria-live="polite">
+              Taxa prevista: <strong>{formatCurrency(fee)}</strong>{" "}
+              <span className="text-muted-foreground">({rateLabel(method, rates[method])})</span>
+              <br />
+              <span className="text-muted-foreground">Você recebe {formatCurrency(amount - fee)}.</span>
+            </p>
+          )}
         </div>
         <DialogFooter>
           <Button

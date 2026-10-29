@@ -13,6 +13,7 @@ import {
   queueMinutes,
   suggestSpool,
 } from "@/lib/orders";
+import { PAYMENT_RATE_COLUMNS } from "@/lib/payment-fees";
 import { loadPricingContext } from "@/lib/pricing-context";
 import type { createClient } from "@/lib/supabase/server";
 
@@ -145,7 +146,7 @@ export async function loadOrderDetail(supabase: Supabase, id: string) {
     supabase
       .from("orders")
       .select(
-        "*, customers(id, name, whatsapp), sales_channels(name, kind), quotes(id, number), order_items(*), order_payments(*), print_failures(*, filaments(material, color_name)), filament_movements(kind, grams, filaments(material, color_name))",
+        `*, customers(id, name, whatsapp), sales_channels(name, kind, ${PAYMENT_RATE_COLUMNS}), quotes(id, number), order_items(*), order_payments(*), print_failures(*, filaments(material, color_name)), filament_movements(kind, grams, filaments(material, color_name))`,
       )
       .eq("id", id)
       .maybeSingle(),

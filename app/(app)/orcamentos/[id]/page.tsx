@@ -80,6 +80,7 @@ export default async function OrcamentoPage({ params }: { params: Promise<{ id: 
         customers={data.customers}
         catalog={data.catalog.options}
         directFees={data.catalog.directFees}
+        directCreditFees={data.catalog.directCreditFees}
         taxPct={data.catalog.taxPct}
         storeName={data.storeName}
         siteUrl={data.siteUrl}

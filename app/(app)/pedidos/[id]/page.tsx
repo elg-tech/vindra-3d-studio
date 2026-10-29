@@ -16,6 +16,7 @@ import {
   orderProfit,
   refundAmount,
 } from "@/lib/orders";
+import { paymentRates } from "@/lib/payment-fees";
 import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 import { DueBadge, PaymentBadge } from "../order-badges";
@@ -229,7 +230,10 @@ export default async function PedidoPage({ params }: { params: Promise<{ id: str
                 amount: p.amount,
                 paidOn: p.paid_on,
                 method: p.method as PaymentMethod | null,
+                fee: p.fee_amount,
               }))}
+            // Venda direta: taxa por forma de pagamento (prevista no diálogo, gravada em cada pagamento)
+            rates={o.sales_channels?.kind === "direct" ? paymentRates(o.sales_channels) : null}
             paidByPlatform={o.paid_by_platform}
             channelName={o.sales_channels?.name ?? null}
             cancelled={cancelled}

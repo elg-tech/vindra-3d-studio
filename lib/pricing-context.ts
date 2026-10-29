@@ -1,5 +1,5 @@
 import "server-only";
-import type { PricingContext } from "@/lib/cost-sheet";
+import { CHANNEL_PRICING_COLUMNS, type PricingContext } from "@/lib/cost-sheet";
 import { averageCostByMaterial, lastCostByMaterial } from "@/lib/filaments";
 import type { RoundingRule } from "@/lib/pricing";
 import type { createClient } from "@/lib/supabase/server";
@@ -21,7 +21,7 @@ export async function loadPricingContext(supabase: Supabase): Promise<PricingCon
       .order("name"),
     supabase
       .from("sales_channels")
-      .select("id, name, kind, commission_pct, extra_pct, fixed_fee")
+      .select(CHANNEL_PRICING_COLUMNS)
       .eq("active", true)
       .order("sort_order"),
     supabase

@@ -229,7 +229,7 @@ export function ManualOrderForm({
             <dd className="text-right tabular-nums">{formatCurrency(num(values.shippingCost))}</dd>
             <dt className="border-t pt-1 font-medium">Total</dt>
             <dd className="border-t pt-1 text-right text-xl font-semibold tabular-nums">{formatCurrency(total)}</dd>
-            <dt className="text-muted-foreground">Taxas do canal</dt>
+            <dt className="text-muted-foreground">{channel?.kind === "direct" ? "Taxas (Pix; a real sai em cada pagamento)" : "Taxas do canal"}</dt>
             <dd className="text-right tabular-nums">−{formatCurrency(fees)}</dd>
           </dl>
           <SubmitButton pending={isPending}>Criar pedido</SubmitButton>

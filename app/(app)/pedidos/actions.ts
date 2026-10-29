@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { type ActionResult, dbError, parseInput } from "@/lib/actions";
 import { loadSheets } from "@/lib/catalog";
-import { channelFees, evaluateSheet } from "@/lib/cost-sheet";
+import { CHANNEL_PRICING_COLUMNS, channelFees, evaluateSheet } from "@/lib/cost-sheet";
 import {
   BOARD_STATUSES,
   type BoardStatus,
@@ -16,6 +16,7 @@ import {
   refundAmount,
 } from "@/lib/orders";
 import { formatCurrency } from "@/lib/format";
+import { PAYMENT_RATE_COLUMNS, paymentFee, paymentRates } from "@/lib/payment-fees";
 import { profitAtPrice } from "@/lib/pricing";
 import { loadPricingContext } from "@/lib/pricing-context";
 import { type DiscountType, quoteTotals } from "@/lib/quotes";
@@ -87,7 +88,7 @@ export async function createOrderFromQuote(quoteId: string): Promise<ActionResul
   const supabase = await createClient();
   const [{ data: q }, { data: direct }] = await Promise.all([
     supabase.from("quotes").select("*, quote_items(*)").eq("id", quoteId).maybeSingle(),
-    supabase.from("sales_channels").select("id, name, kind, commission_pct, extra_pct, fixed_fee").eq("kind", "direct").limit(1).maybeSingle(),
+    supabase.from("sales_channels").select("id").eq("kind", "direct").limit(1).maybeSingle(),
   ]);
   if (!q) return { ok: false, error: "Orçamento não encontrado." };
 
@@ -103,8 +104,6 @@ export async function createOrderFromQuote(quoteId: string): Promise<ActionResul
     supabase,
     items.map((i) => ({ variantId: null, costSheetId: i.cost_sheet_id, quantity: i.quantity })),
   );
-  const fees = direct ? profitAtPrice(totals.total, 0, channelFees(direct), 0).channelFees : 0;
-
   const { data, error } = await supabase.rpc("create_order", {
     p_order: {
       quoteId,
@@ -115,7 +114,8 @@ export async function createOrderFromQuote(quoteId: string): Promise<ActionResul
       shippingCost: totals.shipping,
       discountAmount: totals.discount,
       totalAmount: totals.total,
-      channelFees: Math.round(fees * 100) / 100,
+      // Venda direta: a taxa entra em cada pagamento, pela forma usada (set_order_payment)
+      channelFees: 0,
       notes: q.notes,
       items: items.map((i, idx) => ({
         variantId: i.variant_id,
@@ -144,7 +144,7 @@ export async function createManualOrder(input: unknown): Promise<ActionResult<{ 
   const supabase = await createClient();
   const { data: channel } = await supabase
     .from("sales_channels")
-    .select("id, name, kind, commission_pct, extra_pct, fixed_fee")
+    .select(CHANNEL_PRICING_COLUMNS)
     .eq("id", o.channelId)
     .maybeSingle();
   if (!channel) return { ok: false, error: "Canal não encontrado." };
@@ -153,7 +153,8 @@ export async function createManualOrder(input: unknown): Promise<ActionResult<{ 
   const subtotal = o.items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
   const total = Math.round((subtotal + o.shippingCost) * 100) / 100;
   const { rows } = await itemsFromSheets(supabase, o.items);
-  const fees = profitAtPrice(total, 0, channelFees(channel), 0).channelFees;
+  // Venda direta: a taxa entra em cada pagamento; plataformas e outros canais, a taxa do pedido
+  const fees = channel.kind === "direct" ? 0 : profitAtPrice(total, 0, channelFees(channel), 0).channelFees;
 
   const { data, error } = await supabase.rpc("create_order", {
     p_order: {
@@ -229,21 +230,40 @@ export async function markPayment(input: unknown): Promise<ActionResult> {
   if (!parsed.ok) return parsed;
   const { orderId, kind, paidOn, method } = parsed.data;
   const supabase = await createClient();
-  const { data, error } = await supabase
+  const { data: payment } = await supabase
     .from("order_payments")
-    .update({ paid_on: paidOn, method })
+    .select(`amount, orders(sales_channels(kind, ${PAYMENT_RATE_COLUMNS}))`)
     .eq("order_id", orderId)
     .eq("kind", kind)
-    .select("id");
-  if (error) return { ok: false, error: dbError(error) };
-  if (data.length === 0) return { ok: false, error: "Pagamento não encontrado." };
+    .maybeSingle();
+  if (!payment) return { ok: false, error: "Pagamento não encontrado." };
+
+  // taxa calculada aqui, pela forma usada e pelas taxas atuais da Venda direta (não confia no navegador)
+  const channel = payment.orders?.sales_channels;
+  const fee = channel?.kind === "direct" ? paymentFee(payment.amount, method, paymentRates(channel)) : null;
+  const { error } = await supabase.rpc("set_order_payment", {
+    p_order_id: orderId,
+    p_kind: kind,
+    p_paid_on: paidOn,
+    p_method: method,
+    // a função aceita null (pagamento de outro canal); o gerador de tipos não marca argumento como opcional
+    p_fee: fee as number,
+  });
+  if (error) return { ok: false, error: error.message.includes("payment_not_found") ? "Pagamento não encontrado." : dbError(error) };
   revalidateOrders(orderId);
   return { ok: true, message: kind === "deposit" ? "Sinal pago." : kind === "balance" ? "Restante pago." : "Pagamento registrado." };
 }
 
 export async function unmarkPayment(orderId: string, kind: "deposit" | "balance" | "full"): Promise<ActionResult> {
   const supabase = await createClient();
-  const { error } = await supabase.from("order_payments").update({ paid_on: null, method: null }).eq("order_id", orderId).eq("kind", kind);
+  // desmarcar tira a taxa do pagamento e refaz a taxa do pedido (Venda direta)
+  const { error } = await supabase.rpc("set_order_payment", {
+    p_order_id: orderId,
+    p_kind: kind,
+    p_paid_on: null as unknown as string,
+    p_method: null as unknown as string,
+    p_fee: null as unknown as number,
+  });
   if (error) return { ok: false, error: dbError(error) };
   revalidateOrders(orderId);
   return { ok: true, message: "Pagamento desfeito." };

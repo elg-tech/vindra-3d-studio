@@ -8,6 +8,7 @@ import {
   brandSchema,
   channelSchema,
   costSettingsSchema,
+  directChannelSchema,
   printerSchema,
   storeSettingsSchema,
 } from "@/lib/validation/schemas";
@@ -48,6 +49,16 @@ export async function saveChannel(input: unknown): Promise<ActionResult> {
   const { error } = await supabase.from("sales_channels").update(values).eq("id", id);
   if (error) return { ok: false, error: dbError(error) };
   return done("Taxas do canal salvas.");
+}
+
+export async function saveDirectChannel(input: unknown): Promise<ActionResult> {
+  const parsed = parseInput(directChannelSchema, input);
+  if (!parsed.ok) return parsed;
+  const { id, ...values } = parsed.data;
+  const supabase = await createClient();
+  const { error } = await supabase.from("sales_channels").update(values).eq("id", id).eq("kind", "direct");
+  if (error) return { ok: false, error: dbError(error) };
+  return done("Taxas da venda direta salvas.");
 }
 
 export async function savePrinter(input: unknown): Promise<ActionResult> {

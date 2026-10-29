@@ -1,3 +1,4 @@
+import { PAYMENT_RATE_COLUMNS, type PaymentRateRow, methodChannelFees, paymentRates } from "@/lib/payment-fees";
 import {
   type ChannelFees,
   type CostInput,
@@ -116,7 +117,7 @@ export type ContextPrinter = {
   maintenance_per_hour: number | null;
 };
 
-export type ContextChannel = {
+export type ContextChannel = PaymentRateRow & {
   id: string;
   name: string;
   kind: string;
@@ -124,6 +125,9 @@ export type ContextChannel = {
   extra_pct: number | null;
   fixed_fee: number | null;
 };
+
+/** Colunas do canal que a calculadora usa (taxas do pedido e, na Venda direta, por forma de pagamento). */
+export const CHANNEL_PRICING_COLUMNS = `id, name, kind, commission_pct, extra_pct, fixed_fee, ${PAYMENT_RATE_COLUMNS}`;
 
 export type PricingContext = {
   settings: {
@@ -154,8 +158,15 @@ export function printerCosts(p: ContextPrinter | undefined): PrinterCosts | null
   };
 }
 
+/** Taxas do canal para preço e lucro. Venda direta: as do Pix (padrão); a taxa real sai em cada pagamento. */
 export function channelFees(c: ContextChannel): ChannelFees {
+  if (c.kind === "direct") return methodChannelFees(paymentRates(c).pix);
   return { commissionPct: c.commission_pct, extraPct: c.extra_pct, fixedFee: c.fixed_fee };
+}
+
+/** Venda direta: as taxas do cartão de crédito, para mostrar "no crédito: lucro R$ X". Outros canais: null. */
+export function creditChannelFees(c: ContextChannel): ChannelFees | null {
+  return c.kind === "direct" ? methodChannelFees(paymentRates(c).credit) : null;
 }
 
 export type ResolvedFilament = {

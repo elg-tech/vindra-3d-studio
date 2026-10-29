@@ -313,7 +313,29 @@ Varredura automática (axe-core WCAG A/AA, alvos de toque, rolagem horizontal, f
 
 Resultado final: axe sem violações, sem rolagem horizontal, foco visível em tudo. Sobram só links dentro de texto.
 
+### Taxa por forma de pagamento (branch `taxas-pagamento`, 29/10/2026)
+Problema: a Venda direta tinha uma taxa só ("Maquininha/Pix"), calculada no pedido inteiro ao criar; um pedido pago
+no Pix ficava com a taxa da maquininha.
+- **Venda direta com taxa por forma:** Pix, Dinheiro, Cartão de débito e Cartão de crédito, cada uma com % e taxa fixa
+  (`sales_channels.pix_pct` … `credit_fixed`). Na migração, a taxa única virou a de débito e a de crédito; Pix e
+  Dinheiro em 0. As colunas antigas ficam (a Venda direta não as lê mais). Shopee, TikTok e outros: sem mudança.
+- **Taxa por pagamento:** ao marcar como pago, o servidor calcula a taxa pela forma usada (`paymentFee`,
+  `lib/payment-fees.ts`: valor × % + fixa, em centavos, nunca acima do valor) e grava em `order_payments.fee_amount`
+  pela função `set_order_payment`, que também refaz `orders.channel_fees` = soma das taxas dos pagamentos recebidos.
+  Por isso lucro do pedido, DRE, top 5 e dashboard ficaram certos sem mudar as regras. Desfazer tira a taxa.
+  Pedido de Venda direta nasce com taxa 0. O diálogo mostra a taxa prevista e quanto entra.
+- **"Cartão" virou débito ou crédito.** `card` continua aceito no banco só para registros antigos ("Cartão").
+- **Calculadora, produtos e orçamentos:** preço sugerido e lucro da Venda direta no Pix (padrão, `channelFees`); ao
+  lado, "no crédito: lucro R$ X" (`creditChannelFees`). Taxa fixa uma vez por peça na calculadora (conservador).
+- **Financeiro:** cada receita usa a taxa gravada no pagamento (`paymentFees`, `lib/finance.ts`); registro antigo sem
+  taxa gravada continua com a divisão proporcional da taxa do pedido.
+- **Correção dos pedidos antigos:** prévia somente leitura em `docs/sql/2026-10-taxa-por-pagamento-previa.sql`, que o
+  Enzo roda no SQL Editor; os UPDATEs por id saem da lista revisada (pagamento "cartão" pergunta débito/crédito).
+
 ## Pendências
+
+- [ ] **Taxa por pagamento:** aplicar a migração `20261102120000_taxa_por_pagamento` (Enzo), regenerar os tipos
+  (`npm run db:types`), rodar `npm run test:db`, conferir o preview, merge e então a correção dos pedidos antigos.
 
 - [x] **Lighthouse da página pública `/o/`:** 100/100/100, SEO 66 intencional (ver "Polimento (Fase 10)").
 - [ ] **Lighthouse do `/login`:** falta o Enzo mandar as notas.
