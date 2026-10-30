@@ -417,7 +417,9 @@ export type Database = {
       }
       order_items: {
         Row: {
+          cost_input: Json | null
           cost_sheet_id: string | null
+          cost_source: string | null
           created_at: string
           description: string
           id: string
@@ -432,7 +434,9 @@ export type Database = {
           variant_id: string | null
         }
         Insert: {
+          cost_input?: Json | null
           cost_sheet_id?: string | null
+          cost_source?: string | null
           created_at?: string
           description: string
           id?: string
@@ -447,7 +451,9 @@ export type Database = {
           variant_id?: string | null
         }
         Update: {
+          cost_input?: Json | null
           cost_sheet_id?: string | null
+          cost_source?: string | null
           created_at?: string
           description?: string
           id?: string
@@ -838,7 +844,9 @@ export type Database = {
       }
       quote_items: {
         Row: {
+          cost_input: Json | null
           cost_sheet_id: string | null
+          cost_source: string | null
           created_at: string
           description: string
           id: string
@@ -848,12 +856,15 @@ export type Database = {
           quote_id: string
           sort_order: number
           unit_cost: number | null
+          unit_labor_cost: number | null
           unit_price: number
           updated_at: string
           variant_id: string | null
         }
         Insert: {
+          cost_input?: Json | null
           cost_sheet_id?: string | null
+          cost_source?: string | null
           created_at?: string
           description: string
           id?: string
@@ -863,12 +874,15 @@ export type Database = {
           quote_id: string
           sort_order?: number
           unit_cost?: number | null
+          unit_labor_cost?: number | null
           unit_price: number
           updated_at?: string
           variant_id?: string | null
         }
         Update: {
+          cost_input?: Json | null
           cost_sheet_id?: string | null
+          cost_source?: string | null
           created_at?: string
           description?: string
           id?: string
@@ -878,6 +892,7 @@ export type Database = {
           quote_id?: string
           sort_order?: number
           unit_cost?: number | null
+          unit_labor_cost?: number | null
           unit_price?: number
           updated_at?: string
           variant_id?: string | null
@@ -1301,6 +1316,17 @@ export type Database = {
       }
       save_product: { Args: { p_product: Json }; Returns: string }
       save_quote: { Args: { p_quote: Json }; Returns: string }
+      set_order_item_cost: {
+        Args: {
+          p_cost_input: Json
+          p_cost_sheet_id?: string
+          p_cost_source: string
+          p_item_id: string
+          p_unit_cost: number
+          p_unit_labor_cost: number
+        }
+        Returns: undefined
+      }
       set_order_payment: {
         Args: {
           p_fee: number

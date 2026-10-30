@@ -26,6 +26,8 @@ export type QuoteCatalog = {
   /** Taxas da venda direta no cartão de crédito, para o "no crédito: lucro R$ X". */
   directCreditFees: ChannelFees | null;
   taxPct: number;
+  /** Para a mini calculadora do item avulso. */
+  ctx: PricingContext;
 };
 
 function costOf(sheet: CatalogSheet | undefined, ctx: PricingContext): number | null {
@@ -78,5 +80,5 @@ export async function loadQuoteCatalog(supabase: Supabase): Promise<QuoteCatalog
     return { kind: "sheet", id: s.id, label: s.name, price: suggested(cost), cost };
   });
 
-  return { options: [...variantOptions, ...sheetOptions], directFees, directCreditFees, taxPct: tax_pct };
+  return { options: [...variantOptions, ...sheetOptions], directFees, directCreditFees, taxPct: tax_pct, ctx };
 }

@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { storedItemCost } from "@/lib/item-cost";
 import { type QuoteStatus, effectiveStatus } from "@/lib/quotes";
 import { createClient } from "@/lib/supabase/server";
 import { toField } from "@/lib/validation/fields";
@@ -75,6 +76,7 @@ export default async function OrcamentoPage({ params }: { params: Promise<{ id: 
               description: i.description,
               quantity: String(i.quantity),
               unitPrice: money(i.unit_price),
+              cost: storedItemCost(i.cost_source, i.cost_input),
             })),
         }}
         customers={data.customers}
@@ -82,6 +84,8 @@ export default async function OrcamentoPage({ params }: { params: Promise<{ id: 
         directFees={data.catalog.directFees}
         directCreditFees={data.catalog.directCreditFees}
         taxPct={data.catalog.taxPct}
+        ctx={data.catalog.ctx}
+        supplies={data.supplies}
         storeName={data.storeName}
         siteUrl={data.siteUrl}
         warnings={data.warnings}

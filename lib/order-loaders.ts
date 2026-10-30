@@ -2,6 +2,7 @@ import "server-only";
 import { subDays } from "date-fns";
 import { loadSheets } from "@/lib/catalog";
 import type { PricingContext, SheetData } from "@/lib/cost-sheet";
+import { itemSheet, storedItemCost } from "@/lib/item-cost";
 import {
   type ConsumptionLine,
   type OrderPayment,
@@ -52,7 +53,7 @@ export type BoardOrder = {
 };
 
 const ORDER_COLUMNS =
-  "id, number, status, board_position, status_changed_at, due_date, total_amount, paid_by_platform, consumed_at, filament_skipped, platform_order_number, customers(name), sales_channels(name), order_items(quantity, print_minutes, cost_sheet_id), order_payments(kind, amount, paid_on)";
+  "id, number, status, board_position, status_changed_at, due_date, total_amount, paid_by_platform, consumed_at, filament_skipped, platform_order_number, customers(name), sales_channels(name), order_items(quantity, print_minutes, cost_sheet_id, cost_source, cost_input), order_payments(kind, amount, paid_on)";
 
 export function spoolOptions(ctx: PricingContext): SpoolOption[] {
   return ctx.spools.map((s) => ({
@@ -67,12 +68,18 @@ export function spoolOptions(ctx: PricingContext): SpoolOption[] {
 }
 
 function expectedFor(
-  items: { quantity: number; cost_sheet_id: string | null }[],
+  items: { quantity: number; cost_sheet_id: string | null; cost_source: string | null; cost_input: unknown }[],
   sheets: Map<string, SheetData>,
   ctx: PricingContext,
 ): ExpectedLine[] {
+  // ficha do item; no item avulso, a da mini calculadora (gramas e carretel)
   const lines = expectedConsumption(
-    items.map((i) => ({ sheet: (i.cost_sheet_id && sheets.get(i.cost_sheet_id)) || null, quantity: i.quantity })),
+    items.map((i) => ({
+      sheet:
+        (i.cost_sheet_id && sheets.get(i.cost_sheet_id)) ||
+        itemSheet(storedItemCost(i.cost_source, i.cost_input), i.quantity),
+      quantity: i.quantity,
+    })),
   );
   return lines.map((l) => ({ ...l, suggestedSpoolId: suggestSpool(l, ctx.spools)?.id ?? null }));
 }
@@ -140,9 +147,11 @@ export async function loadBoard(supabase: Supabase) {
 
 /** Página do pedido: tudo do pedido, mais o necessário para baixa, falha e lucro. */
 export async function loadOrderDetail(supabase: Supabase, id: string) {
-  const [ctx, sheets, { data: o }] = await Promise.all([
+  const [ctx, sheets, { data: supplies }, { data: o }] = await Promise.all([
     loadPricingContext(supabase),
     loadSheets(supabase),
+    // para a mini calculadora do "Definir custo"
+    supabase.from("supplies").select("id, name, unit, unit_cost, is_packaging").order("name"),
     supabase
       .from("orders")
       .select(
@@ -157,6 +166,7 @@ export async function loadOrderDetail(supabase: Supabase, id: string) {
   return {
     order: o,
     ctx,
+    supplies: supplies ?? [],
     spools: spoolOptions(ctx),
     paymentState: paymentState(toPayments(o.order_payments), o.paid_by_platform),
     expected: consumed ? [] : expectedFor(o.order_items, sheetMap, ctx),

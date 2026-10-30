@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { type ActionResult, dbError, parseInput } from "@/lib/actions";
 import { loadSheets } from "@/lib/catalog";
 import { evaluateSheet } from "@/lib/cost-sheet";
+import { itemCostFields } from "@/lib/item-cost";
 import { loadPricingContext } from "@/lib/pricing-context";
 import { defaultValidUntil } from "@/lib/quotes";
 import { createClient } from "@/lib/supabase/server";
@@ -59,6 +60,16 @@ export async function saveQuote(input: unknown): Promise<ActionResult<{ id: stri
     items.flatMap((i) => (i.costSheetId ? [i.costSheetId] : [])),
   );
 
+  // item avulso: custo da mini calculadora (recalculado aqui, com os carretéis do banco) ou manual
+  const avulsos = items.some((i) => !i.variantId && !i.costSheetId && i.cost);
+  const ctx = avulsos ? await loadPricingContext(supabase) : null;
+  const itemCosts: (Extract<ReturnType<typeof itemCostFields>, { ok: true }> | null)[] = [];
+  for (const [idx, i] of items.entries()) {
+    const fields = ctx && !i.variantId && !i.costSheetId ? itemCostFields(i.cost, i.quantity, ctx) : null;
+    if (fields && !fields.ok) return { ok: false, error: `Item ${idx + 1} (${i.description}): ${fields.message}` };
+    itemCosts.push(fields);
+  }
+
   const { data, error } = await supabase.rpc("save_quote", {
     p_quote: {
       id: q.id,
@@ -72,14 +83,20 @@ export async function saveQuote(input: unknown): Promise<ActionResult<{ id: stri
       depositPct: q.depositPct,
       paymentTerms: q.paymentTerms,
       notes: q.notes,
-      items: items.map((i) => ({
-        variantId: i.variantId,
-        costSheetId: i.costSheetId,
-        description: i.description,
-        quantity: i.quantity,
-        unitPrice: i.unitPrice,
-        unitCost: i.costSheetId ? (costs.get(i.costSheetId) ?? null) : null,
-      })),
+      items: items.map((i, idx) => {
+        const own = itemCosts[idx];
+        return {
+          variantId: i.variantId,
+          costSheetId: i.costSheetId,
+          description: i.description,
+          quantity: i.quantity,
+          unitPrice: i.unitPrice,
+          unitCost: i.costSheetId ? (costs.get(i.costSheetId) ?? null) : (own?.unitCost ?? null),
+          unitLaborCost: own?.unitLaborCost ?? null,
+          costSource: own?.costSource ?? null,
+          costInput: own?.costInput ?? null,
+        };
+      }),
     },
   });
   if (error) return { ok: false, error: quoteError(error) };
@@ -147,6 +164,9 @@ export async function duplicateQuote(id: string): Promise<ActionResult<{ id: str
           quantity: i.quantity,
           unitPrice: i.unit_price,
           unitCost: i.unit_cost,
+          unitLaborCost: i.unit_labor_cost,
+          costSource: i.cost_source,
+          costInput: i.cost_input,
         })),
     },
   });

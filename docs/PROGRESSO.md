@@ -332,11 +332,32 @@ no Pix ficava com a taxa da maquininha.
 - **Correção dos pedidos antigos:** prévia somente leitura em `docs/sql/2026-10-taxa-por-pagamento-previa.sql`, que o
   Enzo roda no SQL Editor; os UPDATEs por id saem da lista revisada (pagamento "cartão" pergunta débito/crédito).
 
+### Custo no item avulso (branch `custo-item-avulso`, 30/10/2026)
+Problema: venda fechada fora do sistema com item personalizado (fora do catálogo) ficava com custo R$ 0 e inflava o lucro.
+- **Migração `20261103120000_custo_item_avulso` (aditiva):** `quote_items.unit_labor_cost`, `cost_source`
+  (`calc` | `manual`; nulo = ficha ou sem custo) e `cost_input` (jsonb com o que foi digitado) nos itens do orçamento e
+  do pedido. `save_quote` e `create_order` gravam os campos novos. `set_order_item_cost` (security invoker,
+  `owner_id = auth.uid()`, só item sem variação) muda só custo/mão de obra do item, em qualquer status.
+- **Custo do item avulso** (`lib/item-cost.ts`): mini calculadora = a mesma conta da calculadora (`evaluateSheet`) com a
+  quantidade do item; manual = custo + mão de obra (somam; a mão de obra é a parte de labor do DRE). O servidor
+  recalcula a mini calculadora com os carretéis do banco; o preço do item nunca é tocado.
+- **Telas:** botão "Calcular custo"/"Editar custo" no item avulso do orçamento e do pedido novo; "Definir custo" na página
+  do pedido (inclusive Entregue e Cancelado). Custo, lucro e margem do item ao vivo; selo "Sem custo" quando falta.
+  "Salvar como ficha" grava uma ficha na calculadora para reaproveitar, sem ligar o item a ela.
+- **Campos da calculadora** extraídos para `app/(app)/calculadora/sheet-fields.tsx` (calculadora e mini calculadora usam o
+  mesmo componente). Schemas da ficha e do custo do item em `lib/validation/sheet.ts` (sem `lib/env`, testável).
+- **Filamento:** a previsão da baixa usa a ficha da mini calculadora do item avulso (gramas e carretel).
+- **DRE:** o aviso amarelo leva a `/financeiro/sem-custo` (do mês ou todos), e cada item abre `/pedidos/[id]#item-…`.
+- **Testes:** unitários em `tests/item-cost.test.ts`; banco em `tests/db/item-cost.db.test.ts` (o segundo usuário de teste,
+  `E2E_EMAIL_2`, prova que outro usuário não altera); Playwright 1280 e 390 (36/36, fora do repo).
+
 ## Pendências
 
+- [ ] **Custo no item avulso:** Enzo conferir o preview e definir pela tela o custo dos pedidos com item sem custo
+  (lista no aviso do DRE → `/financeiro/sem-custo`). Merge só com o ok dele.
 - [ ] **Taxa por pagamento — correção dos pedidos antigos:** migração aplicada, tipos regenerados, `test:db` ok,
-  preview conferido pelo Enzo (taxas configuradas) e merge feitos em 29/10/2026. Falta o Enzo rodar a prévia
-  (`docs/sql/2026-10-taxa-por-pagamento-previa.sql`), responder débito/crédito dos "cartão" e aprovar os UPDATEs.
+  preview conferido pelo Enzo (taxas configuradas) e merge feitos em 29/10/2026. A prévia mostrou só o PED-2026-0002
+  (R$ 180 no Pix, taxa 5,40 → 0); o UPDATE em transação foi entregue ao Enzo. Confirmar se ele rodou.
 
 - [x] **Lighthouse da página pública `/o/`:** 100/100/100, SEO 66 intencional (ver "Polimento (Fase 10)").
 - [ ] **Lighthouse do `/login`:** falta o Enzo mandar as notas.

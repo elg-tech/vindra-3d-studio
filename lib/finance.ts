@@ -87,6 +87,9 @@ export const CATEGORY_LABEL: Record<string, string> = { ...EXPENSE_CATEGORIES, .
 // Entradas
 // ---------------------------------------------------------------
 export type FinanceItem = {
+  /** Para levar direto ao item ("Pedidos com item sem custo"). */
+  id?: string;
+  description?: string;
   quantity: number;
   unitPrice: number;
   /** Custo por peça (inclui a hora de trabalho); null = sem custo conhecido. */
@@ -414,6 +417,36 @@ export function buildDre(input: {
     orders: results.length,
     ordersMissingCost: results.filter((r) => r.missingCost).length,
   };
+}
+
+export type MissingCostOrder = {
+  id: string;
+  number: string;
+  status: OrderStatus;
+  /** Dia em que o pedido entrou no DRE; null = ainda não pago por inteiro. */
+  recognizedOn: string | null;
+  items: { id: string; description: string }[];
+};
+
+/**
+ * Pedidos com item sem custo, com a mesma regra do aviso do DRE (cancelado sem peças impressas não conta).
+ * Com `month`, só os pedidos daquele DRE; sem, todos (inclusive os ainda não pagos).
+ */
+export function missingCostOrders(orders: FinanceOrder[], month: Month | null): MissingCostOrder[] {
+  return orders
+    .filter((o) => orderResult(o, 0).missingCost)
+    .map((o) => ({ o, day: recognitionDay(o) }))
+    .filter(({ day }) => month === null || (day !== null && monthOfDay(day) === month))
+    .map(({ o, day }) => ({
+      id: o.id,
+      number: o.number,
+      status: o.status,
+      recognizedOn: day,
+      items: o.items
+        .filter((i) => i.unitCost === null)
+        .map((i, idx) => ({ id: i.id ?? `${o.id}-${idx}`, description: i.description ?? i.productName })),
+    }))
+    .sort((a, b) => b.number.localeCompare(a.number));
 }
 
 /** Custos do DRE (tudo o que sai do faturamento e das outras receitas até o lucro líquido). */

@@ -13,6 +13,7 @@ import {
   percent,
   requiredText,
 } from "./fields";
+import { itemCostSchema } from "./sheet";
 
 // ---------------------------------------------------------------
 // Configurações
@@ -180,49 +181,9 @@ export type MovementInput = z.input<typeof movementSchema>;
 export type SupplyInput = z.input<typeof supplySchema>;
 
 // ---------------------------------------------------------------
-// Ficha de custo (calculadora) — chega já em números
+// Ficha de custo e custo do item avulso: ./sheet.ts (sem dependências do app; lib/item-cost também usa)
 // ---------------------------------------------------------------
-const minutes = z.number().int("Use minutos inteiros.").min(0, "Não pode ser negativo.").max(100_000);
-
-export const costSheetSchema = z.object({
-  id: z.uuid().optional(),
-  name: requiredText(120),
-  printerId: z.uuid().nullable(),
-  printMinutes: minutes,
-  prepMinutes: minutes,
-  postMinutes: minutes,
-  purgeG: z.number().min(0, "Não pode ser negativo.").max(10_000),
-  packagingCost: z.number().min(0, "Não pode ser negativo.").max(100_000),
-  quantity: z.number().int("Use um número inteiro.").min(1, "Mínimo 1.").max(10_000),
-  piecesPerPlate: z.number().int("Use um número inteiro.").min(1, "Mínimo 1.").max(1_000),
-  filaments: z
-    .array(
-      z.object({
-        filamentId: z.uuid().nullable(),
-        material: z.enum(MATERIALS),
-        colorHex: z
-          .string()
-          .regex(/^#[0-9A-Fa-f]{6}$/)
-          .nullable(),
-        grams: z.number().min(0, "Não pode ser negativo.").max(10_000),
-      }),
-    )
-    .max(16, "No máximo 16 filamentos."),
-  extras: z
-    .array(
-      z.object({
-        supplyId: z.uuid().nullable(),
-        name: requiredText(80),
-        quantity: z.number().positive("Quantidade precisa ser maior que zero.").max(10_000),
-        unitCost: z.number().min(0, "Não pode ser negativo.").max(100_000),
-      }),
-    )
-    .max(30, "No máximo 30 insumos."),
-  sourceFilePath: z.string().max(500).nullable(),
-  notes: z.string().trim().max(1000).nullable(),
-});
-
-export type CostSheetInput = z.input<typeof costSheetSchema>;
+export { type CostSheetInput, type ItemCostSchemaInput, costSheetSchema, itemCostSchema, orderItemCostSchema } from "./sheet";
 
 // ---------------------------------------------------------------
 // Produtos e variações (campos de texto, como no formulário)
@@ -367,6 +328,8 @@ export const quoteSchema = z
           description: requiredText(200),
           quantity: decimal({ int: true, min: 1, max: 10_000 }),
           unitPrice: decimal({ min: 0, max: 1_000_000 }),
+          // só vale no item avulso; item do catálogo usa a ficha
+          cost: itemCostSchema.nullable().optional().transform((v) => v ?? null),
         }),
       )
       .min(1, "Adicione pelo menos um item.")
@@ -410,6 +373,7 @@ export const manualOrderSchema = z.object({
         description: requiredText(200),
         quantity: decimal({ int: true, min: 1, max: 10_000 }),
         unitPrice: decimal({ min: 0, max: 1_000_000 }),
+        cost: itemCostSchema.nullable().optional().transform((v) => v ?? null),
       }),
     )
     .min(1, "Adicione pelo menos um item.")

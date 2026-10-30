@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency, formatDateTime, formatGrams, formatNumber } from "@/lib/format";
+import { storedItemCost } from "@/lib/item-cost";
 import { loadOrderDetail } from "@/lib/order-loaders";
 import {
   ORDER_STATUS_LABEL,
@@ -19,7 +20,9 @@ import {
 import { paymentRates } from "@/lib/payment-fees";
 import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
+import { ItemCostSummary } from "../../calculadora/item-cost-dialog";
 import { DueBadge, PaymentBadge } from "../order-badges";
+import { ItemCostButton } from "./item-cost-button";
 import { CancelOrder, DeleteOrder, DetailsForm, FailureDialog, PaymentsPanel, StatusPanel } from "./order-panels";
 
 const isUuid = (id: string) => /^[0-9a-f-]{36}$/i.test(id);
@@ -39,7 +42,7 @@ export default async function PedidoPage({ params }: { params: Promise<{ id: str
   const supabase = await createClient();
   const detail = await loadOrderDetail(supabase, id);
   if (!detail) notFound();
-  const { order: o, ctx, spools, expected, paymentState } = detail;
+  const { order: o, ctx, supplies, spools, expected, paymentState } = detail;
 
   const status = o.status as OrderStatus;
   const cancelled = status === "cancelled";
@@ -101,18 +104,47 @@ export default async function PedidoPage({ params }: { params: Promise<{ id: str
             </CardHeader>
             <CardContent className="grid gap-4">
               <ul className="divide-y text-sm">
-                {o.order_items.map((i) => (
-                  <li key={i.id} className="flex items-start justify-between gap-3 py-2">
-                    <span className="min-w-0">
-                      <span className="block font-medium break-words">{i.description}</span>
-                      <span className="text-muted-foreground tabular-nums">
-                        {i.quantity} × {formatCurrency(i.unit_price)}
-                        {i.print_minutes ? ` · ${formatMinutes(i.print_minutes)} de impressão` : ""}
-                      </span>
-                    </span>
-                    <span className="shrink-0 tabular-nums">{formatCurrency(i.quantity * i.unit_price)}</span>
-                  </li>
-                ))}
+                {o.order_items.map((i) => {
+                  // item avulso (sem produto nem ficha): custo pela mini calculadora ou manual, em qualquer status
+                  const avulso = !i.variant_id && !i.cost_sheet_id;
+                  return (
+                    <li
+                      key={i.id}
+                      id={`item-${i.id}`}
+                      className="grid scroll-mt-24 gap-1.5 rounded-md py-2 target:bg-warning/10 target:ring-2 target:ring-warning/50"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="min-w-0">
+                          <span className="block font-medium break-words">{i.description}</span>
+                          <span className="text-muted-foreground tabular-nums">
+                            {i.quantity} × {formatCurrency(i.unit_price)}
+                            {i.print_minutes ? ` · ${formatMinutes(i.print_minutes)} de impressão` : ""}
+                          </span>
+                        </span>
+                        <span className="shrink-0 tabular-nums">{formatCurrency(i.quantity * i.unit_price)}</span>
+                      </div>
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <ItemCostSummary unitCost={i.unit_cost} quantity={i.quantity} unitPrice={i.unit_price} />
+                        {avulso ? (
+                          <ItemCostButton
+                            itemId={i.id}
+                            description={i.description}
+                            quantity={i.quantity}
+                            unitPrice={i.unit_price}
+                            value={storedItemCost(i.cost_source, i.cost_input)}
+                            hasCost={i.unit_cost !== null}
+                            ctx={ctx}
+                            supplies={supplies}
+                          />
+                        ) : (
+                          i.unit_cost === null && (
+                            <span className="text-xs text-muted-foreground">Ficha sem custo: corrija na calculadora ou no produto.</span>
+                          )
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
               <dl className="grid grid-cols-[1fr_auto] gap-y-1 border-t pt-3 text-sm">
                 {o.discount_amount > 0 && (
@@ -156,7 +188,9 @@ export default async function PedidoPage({ params }: { params: Promise<{ id: str
                     )}
                   </dd>
                 </dl>
-                {profit.itemsCost === null && <p className="text-xs text-muted-foreground">Item sem custo: lucro não calculado.</p>}
+                {profit.itemsCost === null && (
+                  <p className="text-xs text-muted-foreground">Item sem custo: lucro não calculado. Use &ldquo;Definir custo&rdquo; no item.</p>
+                )}
               </div>
             </CardContent>
           </Card>
