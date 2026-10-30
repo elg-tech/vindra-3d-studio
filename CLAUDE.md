@@ -1,6 +1,6 @@
-# Vindra 3D Studio
+> **⚠️ RESPONDA SEMPRE EM PORTUGUÊS.**
 
-**Responda sempre em português.**
+# Vindra 3D Studio
 
 Antes de qualquer coisa, leia `docs/PROGRESSO.md` (fases, decisões e pendências) e
 `docs/PROMPT_VINDRA_3D.md` (prompt mestre com as fases e as regras de trabalho).
@@ -19,6 +19,7 @@ No fim de cada fase, atualize `docs/PROGRESSO.md` com o hash do commit, as decis
 - **`SUPABASE_SERVICE_ROLE_KEY` só pode ser usada com pedido explícito do Enzo na conversa**, e só para o que ele
   pediu. Ela ignora o RLS e enxerga a conta de todo mundo. Nunca use por iniciativa própria, nem para "só conferir".
 - O usuário de teste (`E2E_EMAIL`/`E2E_PASSWORD`) serve só para o Playwright e para os testes de banco (`npm run test:db`).
+  O segundo (`E2E_EMAIL_2`/`E2E_PASSWORD_2`) serve só para os testes de banco de "outro usuário não altera".
 - Migrações: o Enzo roda `npm run db:push` no terminal dele; avise quando houver migração nova e espere.
 
 ## Produção (desde 28/10/2026)
