@@ -332,7 +332,7 @@ no Pix ficava com a taxa da maquininha.
 - **Correção dos pedidos antigos:** prévia somente leitura em `docs/sql/2026-10-taxa-por-pagamento-previa.sql`, que o
   Enzo roda no SQL Editor; os UPDATEs por id saem da lista revisada (pagamento "cartão" pergunta débito/crédito).
 
-### Custo no item avulso (branch `custo-item-avulso`, 30/10/2026)
+### Custo no item avulso (commits `28defc2` e `218fbbb`, merge `21ecd7f` em 31/10/2026)
 Problema: venda fechada fora do sistema com item personalizado (fora do catálogo) ficava com custo R$ 0 e inflava o lucro.
 - **Migração `20261103120000_custo_item_avulso` (aditiva):** `quote_items.unit_labor_cost`, `cost_source`
   (`calc` | `manual`; nulo = ficha ou sem custo) e `cost_input` (jsonb com o que foi digitado) nos itens do orçamento e
@@ -353,11 +353,10 @@ Problema: venda fechada fora do sistema com item personalizado (fora do catálog
 
 ## Pendências
 
-- [ ] **Custo no item avulso:** Enzo conferir o preview e definir pela tela o custo dos pedidos com item sem custo
-  (lista no aviso do DRE → `/financeiro/sem-custo`). Merge só com o ok dele.
-- [ ] **Taxa por pagamento — correção dos pedidos antigos:** migração aplicada, tipos regenerados, `test:db` ok,
-  preview conferido pelo Enzo (taxas configuradas) e merge feitos em 29/10/2026. A prévia mostrou só o PED-2026-0002
-  (R$ 180 no Pix, taxa 5,40 → 0); o UPDATE em transação foi entregue ao Enzo. Confirmar se ele rodou.
+- [x] **Custo no item avulso:** Enzo conferiu o preview e definiu pela tela o custo de todos os itens sem custo
+  (31/10/2026); o DRE já mostra o custo dos produtos.
+- [x] **Taxa por pagamento — correção dos pedidos antigos:** só o PED-2026-0002 (R$ 180 no Pix) precisava; está com
+  taxa R$ 0,00 (confirmado pelo Enzo em 31/10/2026).
 
 - [x] **Lighthouse da página pública `/o/`:** 100/100/100, SEO 66 intencional (ver "Polimento (Fase 10)").
 - [ ] **Lighthouse do `/login`:** falta o Enzo mandar as notas.
