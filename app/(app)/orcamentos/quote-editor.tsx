@@ -2,6 +2,7 @@
 
 import {
   AlertTriangle,
+  Calculator,
   CheckCircle2,
   ClipboardList,
   Copy,
@@ -29,13 +30,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import type { PricingContext } from "@/lib/cost-sheet";
 import { formatCurrency, formatDateTime, formatNumber } from "@/lib/format";
+import { type ItemCost, evaluateItemCost } from "@/lib/item-cost";
 import { parseDecimal } from "@/lib/numbers";
 import type { ChannelFees } from "@/lib/pricing";
 import type { QuoteCatalogOption } from "@/lib/quote-catalog";
 import { type QuoteStatus, quoteMessage, quoteProfit, quoteTotals, whatsappLink } from "@/lib/quotes";
 import { cn } from "@/lib/utils";
-import { type QuoteInput, quoteSchema } from "@/lib/validation/schemas";
+import { type ItemCostSchemaInput, type QuoteInput, quoteSchema } from "@/lib/validation/schemas";
+import { ItemCostDialog, ItemCostSummary } from "../calculadora/item-cost-dialog";
+import type { SupplyOption } from "../calculadora/sheet-fields";
 import { createOrderFromQuote } from "../pedidos/actions";
 import { deleteQuote, duplicateQuote, markQuoteSent, saveQuote, setQuoteOutcome } from "./actions";
 import { QuoteStatusBadge } from "./quote-status-badge";
@@ -65,6 +70,8 @@ export function QuoteEditor({
   directFees,
   directCreditFees,
   taxPct,
+  ctx,
+  supplies,
   storeName,
   siteUrl,
   warnings,
@@ -73,6 +80,9 @@ export function QuoteEditor({
   initialValues: QuoteInput;
   customers: CustomerOption[];
   catalog: QuoteCatalogOption[];
+  /** Para a mini calculadora do item avulso. */
+  ctx: PricingContext;
+  supplies: SupplyOption[];
   directFees: ChannelFees;
   directCreditFees: ChannelFees | null;
   taxPct: number;
@@ -98,13 +108,21 @@ export function QuoteEditor({
   const items = useFieldArray({ control, name: "items" });
   const values = useWatch({ control }) as QuoteInput;
 
-  // resumo ao vivo com o custo atual de cada ficha (o salvo é recalculado no servidor)
+  // resumo ao vivo com o custo atual de cada ficha e do item avulso (o salvo é recalculado no servidor)
   const costById = new Map(catalog.map((o) => [o.id, o.cost]));
+  const avulsoCost = (i: NonNullable<QuoteInput["items"]>[number]) => {
+    const evaluation = i.cost ? evaluateItemCost(i.cost as ItemCost, num(i.quantity), ctx) : null;
+    return evaluation?.ok ? evaluation.unitCost : null;
+  };
   const amounts = {
     items: (values.items ?? []).map((i) => ({
       quantity: num(i.quantity),
       unitPrice: num(i.unitPrice),
-      unitCost: i.variantId ? (costById.get(i.variantId) ?? null) : i.costSheetId ? (costById.get(i.costSheetId) ?? null) : null,
+      unitCost: i.variantId
+        ? (costById.get(i.variantId) ?? null)
+        : i.costSheetId
+          ? (costById.get(i.costSheetId) ?? null)
+          : avulsoCost(i),
     })),
     discountType: values.discountType ?? "amount",
     discountValue: num(values.discountValue),
@@ -115,6 +133,7 @@ export function QuoteEditor({
   const profit = quoteProfit(amounts, directFees, taxPct);
   // lucro no Pix é o padrão; ao lado, o mesmo orçamento pago no crédito
   const creditProfit = directCreditFees ? quoteProfit(amounts, directCreditFees, taxPct) : null;
+  const missingCost = amounts.items.filter((i) => i.unitCost === null).length;
 
   function addFromCatalog(value: string) {
     const option = catalog.find((o) => `${o.kind}:${o.id}` === value);
@@ -261,10 +280,29 @@ export function QuoteEditor({
                     />
                     <p className="col-span-2 text-sm text-muted-foreground tabular-nums sm:col-span-1 sm:pb-2 sm:text-right">
                       {formatCurrency(line.quantity * line.unitPrice)}
-                      {line.unitCost !== null && (
-                        <span className="block text-xs">custo {formatCurrency(line.unitCost)}/peça</span>
-                      )}
                     </p>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <ItemCostSummary unitCost={line.unitCost} quantity={line.quantity} unitPrice={line.unitPrice} />
+                    {!values.items?.[i]?.variantId && !values.items?.[i]?.costSheetId && !locked && (
+                      <ItemCostDialog
+                        ctx={ctx}
+                        supplies={supplies}
+                        description={values.items?.[i]?.description ?? ""}
+                        quantity={line.quantity || 1}
+                        unitPrice={line.unitPrice}
+                        value={(values.items?.[i]?.cost as ItemCost | null | undefined) ?? null}
+                        onSave={(cost) => {
+                          form.setValue(`items.${i}.cost`, cost as ItemCostSchemaInput | null, { shouldDirty: true });
+                          return true;
+                        }}
+                        trigger={
+                          <Button type="button" variant="outline" size="sm">
+                            <Calculator aria-hidden /> {values.items?.[i]?.cost ? "Editar custo" : "Calcular custo"}
+                          </Button>
+                        }
+                      />
+                    )}
                   </div>
                 </div>
               );
@@ -307,7 +345,9 @@ export function QuoteEditor({
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => items.append({ variantId: "", costSheetId: "", description: "", quantity: "1", unitPrice: "" })}
+                onClick={() =>
+                  items.append({ variantId: "", costSheetId: "", description: "", quantity: "1", unitPrice: "", cost: null })
+                }
               >
                 <Plus aria-hidden /> Item avulso
               </Button>
@@ -440,8 +480,12 @@ export function QuoteEditor({
                   no crédito: lucro {formatCurrency(creditProfit.profit)} (taxa {formatCurrency(creditProfit.channelFees)})
                 </p>
               )}
-              {profit.itemsCost === null && amounts.items.length > 0 && (
-                <p className="text-xs text-muted-foreground">Item avulso ou sem ficha: lucro não calculado.</p>
+              {missingCost > 0 && (
+                <p className="flex gap-1.5 text-xs">
+                  <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-warning" aria-hidden />
+                  {missingCost === 1 ? "1 item sem custo" : `${missingCost} itens sem custo`}: lucro não calculado. Use
+                  &ldquo;Calcular custo&rdquo; no item.
+                </p>
               )}
             </div>
 

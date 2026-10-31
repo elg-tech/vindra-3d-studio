@@ -47,6 +47,8 @@ export default async function NovoOrcamentoPage({ searchParams }: { searchParams
         directFees={data.catalog.directFees}
         directCreditFees={data.catalog.directCreditFees}
         taxPct={data.catalog.taxPct}
+        ctx={data.catalog.ctx}
+        supplies={data.supplies}
         storeName={data.storeName}
         siteUrl={data.siteUrl}
         warnings={data.warnings}

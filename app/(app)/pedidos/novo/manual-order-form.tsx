@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, Calculator, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Controller, useFieldArray, useWatch } from "react-hook-form";
 import { FieldShell, TextAreaField, TextField } from "@/components/form/field";
@@ -9,10 +9,14 @@ import { useActionForm } from "@/components/form/use-action-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
+import type { PricingContext } from "@/lib/cost-sheet";
 import { formatCurrency } from "@/lib/format";
+import { type ItemCost, evaluateItemCost } from "@/lib/item-cost";
 import { parseDecimal } from "@/lib/numbers";
 import { profitAtPrice } from "@/lib/pricing";
-import { type ManualOrderInput, manualOrderSchema } from "@/lib/validation/schemas";
+import { type ItemCostSchemaInput, type ManualOrderInput, manualOrderSchema } from "@/lib/validation/schemas";
+import { ItemCostDialog, ItemCostSummary } from "../../calculadora/item-cost-dialog";
+import type { SupplyOption } from "../../calculadora/sheet-fields";
 import { createManualOrder } from "../actions";
 import type { OrderCatalogOption, OrderChannel } from "./load";
 
@@ -26,10 +30,15 @@ export function ManualOrderForm({
   channels,
   customers,
   options,
+  ctx,
+  supplies,
 }: {
   channels: OrderChannel[];
   customers: { id: string; name: string }[];
   options: OrderCatalogOption[];
+  /** Para a mini calculadora do item avulso. */
+  ctx: PricingContext;
+  supplies: SupplyOption[];
 }) {
   const router = useRouter();
   const { form, onSubmit, isPending } = useActionForm({
@@ -53,6 +62,14 @@ export function ManualOrderForm({
   const channel = channels.find((c) => c.id === values.channelId);
 
   const subtotal = (values.items ?? []).reduce((s, i) => s + num(i.quantity) * num(i.unitPrice), 0);
+  // custo ao vivo: o da ficha do catálogo ou o do item avulso (o salvo é recalculado no servidor)
+  const costById = new Map(options.map((o) => [o.id, o.cost]));
+  const unitCosts = (values.items ?? []).map((i) => {
+    if (i.variantId || i.costSheetId) return costById.get(i.variantId || i.costSheetId || "") ?? null;
+    const evaluation = i.cost ? evaluateItemCost(i.cost as ItemCost, num(i.quantity), ctx) : null;
+    return evaluation?.ok ? evaluation.unitCost : null;
+  });
+  const missingCost = unitCosts.filter((c) => c === null).length;
   const total = subtotal + num(values.shippingCost);
   const fees = channel
     ? profitAtPrice(total, 0, { commissionPct: channel.commissionPct, extraPct: channel.extraPct, fixedFee: channel.fixedFee }, 0).channelFees
@@ -166,6 +183,32 @@ export function ManualOrderForm({
                   <TextField label="Qtd." registration={register(`items.${i}.quantity`)} error={e.items?.[i]?.quantity} numeric inputMode="numeric" />
                   <TextField label="Preço unitário" registration={register(`items.${i}.unitPrice`)} error={e.items?.[i]?.unitPrice} numeric prefix="R$" />
                 </div>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <ItemCostSummary
+                    unitCost={unitCosts[i] ?? null}
+                    quantity={num(values.items?.[i]?.quantity)}
+                    unitPrice={num(values.items?.[i]?.unitPrice)}
+                  />
+                  {!values.items?.[i]?.variantId && !values.items?.[i]?.costSheetId && (
+                    <ItemCostDialog
+                      ctx={ctx}
+                      supplies={supplies}
+                      description={values.items?.[i]?.description ?? ""}
+                      quantity={num(values.items?.[i]?.quantity) || 1}
+                      unitPrice={num(values.items?.[i]?.unitPrice)}
+                      value={(values.items?.[i]?.cost as ItemCost | null | undefined) ?? null}
+                      onSave={(cost) => {
+                        form.setValue(`items.${i}.cost`, cost as ItemCostSchemaInput | null, { shouldDirty: true });
+                        return true;
+                      }}
+                      trigger={
+                        <Button type="button" variant="outline" size="sm">
+                          <Calculator aria-hidden /> {values.items?.[i]?.cost ? "Editar custo" : "Calcular custo"}
+                        </Button>
+                      }
+                    />
+                  )}
+                </div>
               </div>
             ))}
             <div className="flex flex-wrap gap-2">
@@ -201,7 +244,9 @@ export function ManualOrderForm({
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => items.append({ variantId: "", costSheetId: "", description: "", quantity: "1", unitPrice: "" })}
+                onClick={() =>
+                  items.append({ variantId: "", costSheetId: "", description: "", quantity: "1", unitPrice: "", cost: null })
+                }
               >
                 <Plus aria-hidden /> Item avulso
               </Button>
@@ -232,6 +277,13 @@ export function ManualOrderForm({
             <dt className="text-muted-foreground">{channel?.kind === "direct" ? "Taxas (Pix; a real sai em cada pagamento)" : "Taxas do canal"}</dt>
             <dd className="text-right tabular-nums">−{formatCurrency(fees)}</dd>
           </dl>
+          {missingCost > 0 && (
+            <p className="flex gap-1.5 rounded-lg border border-warning/40 bg-warning/10 p-2.5 text-xs">
+              <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-warning" aria-hidden />
+              {missingCost === 1 ? "1 item sem custo" : `${missingCost} itens sem custo`}: o lucro do pedido fica sem cálculo até
+              você definir. Pode criar assim e definir depois na página do pedido.
+            </p>
+          )}
           <SubmitButton pending={isPending}>Criar pedido</SubmitButton>
         </CardContent>
       </Card>

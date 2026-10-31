@@ -25,7 +25,13 @@ export default async function NovoPedidoPage() {
           Venda da Shopee, do TikTok ou direta sem orçamento. Para um orçamento aprovado, use &ldquo;Converter em pedido&rdquo; nele.
         </p>
       </div>
-      <ManualOrderForm channels={data.channels} customers={data.customers} options={data.options} />
+      <ManualOrderForm
+        channels={data.channels}
+        customers={data.customers}
+        options={data.options}
+        ctx={data.ctx}
+        supplies={data.supplies}
+      />
     </div>
   );
 }

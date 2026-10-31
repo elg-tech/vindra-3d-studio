@@ -95,7 +95,7 @@ export default async function FinanceiroPage({ searchParams }: { searchParams: P
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <DreCard dre={dre} taxPct={data.taxPct} />
+        <DreCard dre={dre} taxPct={data.taxPct} month={month} />
         <Card>
           <CardHeader>
             <CardTitle>Ponto de equilíbrio</CardTitle>
@@ -201,7 +201,7 @@ function EntryRow({ entry: e }: { entry: FinanceEntry }) {
   );
 }
 
-function DreCard({ dre, taxPct }: { dre: Dre; taxPct: number }) {
+function DreCard({ dre, taxPct, month }: { dre: Dre; taxPct: number; month: string }) {
   return (
     <Card>
       <CardHeader>
@@ -214,10 +214,16 @@ function DreCard({ dre, taxPct }: { dre: Dre; taxPct: number }) {
       </CardHeader>
       <CardContent className="grid gap-3">
         {dre.ordersMissingCost > 0 && (
-          <p className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 p-2.5 text-sm">
+          <Link
+            href={`/financeiro/sem-custo?mes=${month}`}
+            className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 p-2.5 text-sm hover:bg-warning/20 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          >
             <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
-            {dre.ordersMissingCost} {dre.ordersMissingCost === 1 ? "pedido tem" : "pedidos têm"} item sem custo (contado como R$ 0).
-          </p>
+            <span>
+              {dre.ordersMissingCost} {dre.ordersMissingCost === 1 ? "pedido tem" : "pedidos têm"} item sem custo (contado como R$ 0).{" "}
+              <span className="font-medium underline underline-offset-4">Ver e definir o custo</span>
+            </span>
+          </Link>
         )}
         <dl className="grid text-sm">
           <Line label="Faturamento bruto" value={dre.revenue} strong />

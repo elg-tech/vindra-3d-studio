@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { type ActionResult, dbError, parseInput } from "@/lib/actions";
 import { loadSheets } from "@/lib/catalog";
 import { CHANNEL_PRICING_COLUMNS, channelFees, evaluateSheet } from "@/lib/cost-sheet";
+import { itemCostFields, itemSheet, sheetUnitCosts, storedItemCost } from "@/lib/item-cost";
 import {
   BOARD_STATUSES,
   type BoardStatus,
@@ -20,8 +21,16 @@ import { PAYMENT_RATE_COLUMNS, paymentFee, paymentRates } from "@/lib/payment-fe
 import { profitAtPrice } from "@/lib/pricing";
 import { loadPricingContext } from "@/lib/pricing-context";
 import { type DiscountType, quoteTotals } from "@/lib/quotes";
+import type { Json } from "@/lib/supabase/database.types";
 import { createClient } from "@/lib/supabase/server";
-import { consumeSchema, failureSchema, manualOrderSchema, markPaymentSchema, orderDetailsSchema } from "@/lib/validation/schemas";
+import {
+  consumeSchema,
+  failureSchema,
+  manualOrderSchema,
+  markPaymentSchema,
+  orderDetailsSchema,
+  orderItemCostSchema,
+} from "@/lib/validation/schemas";
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
 type DbError = { code?: string; message: string };
@@ -70,13 +79,12 @@ async function itemsFromSheets(
       const sheetId = i.variantId ? (variantSheet.get(i.variantId) ?? null) : i.costSheetId;
       const sheet = sheetId ? sheetMap.get(sheetId) : undefined;
       const evaluation = sheet ? evaluateSheet(sheet, ctx) : null;
+      // hora de trabalho do custo por peça, com o mesmo acréscimo da margem de falha (DRE "sem a sua hora")
+      const costs = evaluation?.ok ? sheetUnitCosts(evaluation.result, ctx.settings.failure_margin_pct) : null;
       return {
         costSheetId: sheetId,
-        unitCost: evaluation?.ok ? Math.round(evaluation.result.unit.total * 10_000) / 10_000 : null,
-        // hora de trabalho do custo por peça, com o mesmo acréscimo da margem de falha (DRE "sem a sua hora")
-        unitLaborCost: evaluation?.ok
-          ? Math.round(evaluation.result.unit.labor * (1 + ctx.settings.failure_margin_pct / 100) * 10_000) / 10_000
-          : null,
+        unitCost: costs?.unitCost ?? null,
+        unitLaborCost: costs?.unitLaborCost ?? null,
         printMinutes: itemPrintMinutes(sheet ?? null, i.quantity),
       };
     }),
@@ -117,17 +125,23 @@ export async function createOrderFromQuote(quoteId: string): Promise<ActionResul
       // Venda direta: a taxa entra em cada pagamento, pela forma usada (set_order_payment)
       channelFees: 0,
       notes: q.notes,
-      items: items.map((i, idx) => ({
-        variantId: i.variant_id,
-        costSheetId: i.cost_sheet_id,
-        description: i.description,
-        quantity: i.quantity,
-        unitPrice: i.unit_price,
-        // custo da época do orçamento; sem ele, o custo de hoje da ficha
-        unitCost: i.unit_cost ?? rows[idx].unitCost,
-        unitLaborCost: rows[idx].unitLaborCost,
-        printMinutes: rows[idx].printMinutes,
-      })),
+      items: items.map((i, idx) => {
+        // item avulso com custo da mini calculadora ou manual: vai como está no orçamento
+        const own = storedItemCost(i.cost_source, i.cost_input);
+        return {
+          variantId: i.variant_id,
+          costSheetId: i.cost_sheet_id,
+          description: i.description,
+          quantity: i.quantity,
+          unitPrice: i.unit_price,
+          // custo da época do orçamento; sem ele, o custo de hoje da ficha
+          unitCost: i.unit_cost ?? rows[idx].unitCost,
+          unitLaborCost: own ? i.unit_labor_cost : rows[idx].unitLaborCost,
+          printMinutes: rows[idx].printMinutes ?? itemPrintMinutes(itemSheet(own, i.quantity), i.quantity),
+          costSource: own ? i.cost_source : null,
+          costInput: own ? i.cost_input : null,
+        };
+      }),
       payments: plannedPayments(totals.total, totals.deposit),
     },
   });
@@ -152,7 +166,13 @@ export async function createManualOrder(input: unknown): Promise<ActionResult<{ 
   const platform = channel.kind === "shopee" || channel.kind === "tiktok";
   const subtotal = o.items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
   const total = Math.round((subtotal + o.shippingCost) * 100) / 100;
-  const { rows } = await itemsFromSheets(supabase, o.items);
+  const { rows, ctx } = await itemsFromSheets(supabase, o.items);
+  const itemCosts: (Extract<ReturnType<typeof itemCostFields>, { ok: true }> | null)[] = [];
+  for (const [idx, i] of o.items.entries()) {
+    const fields = !i.variantId && !i.costSheetId ? itemCostFields(i.cost, i.quantity, ctx) : null;
+    if (fields && !fields.ok) return { ok: false, error: `Item ${idx + 1} (${i.description}): ${fields.message}` };
+    itemCosts.push(fields);
+  }
   // Venda direta: a taxa entra em cada pagamento; plataformas e outros canais, a taxa do pedido
   const fees = channel.kind === "direct" ? 0 : profitAtPrice(total, 0, channelFees(channel), 0).channelFees;
 
@@ -169,16 +189,21 @@ export async function createManualOrder(input: unknown): Promise<ActionResult<{ 
       channelFees: Math.round(fees * 100) / 100,
       paidByPlatform: platform,
       notes: o.notes,
-      items: o.items.map((i, idx) => ({
-        variantId: i.variantId,
-        costSheetId: rows[idx].costSheetId,
-        description: i.description,
-        quantity: i.quantity,
-        unitPrice: i.unitPrice,
-        unitCost: rows[idx].unitCost,
-        unitLaborCost: rows[idx].unitLaborCost,
-        printMinutes: rows[idx].printMinutes,
-      })),
+      items: o.items.map((i, idx) => {
+        const own = itemCosts[idx];
+        return {
+          variantId: i.variantId,
+          costSheetId: rows[idx].costSheetId,
+          description: i.description,
+          quantity: i.quantity,
+          unitPrice: i.unitPrice,
+          unitCost: own ? own.unitCost : rows[idx].unitCost,
+          unitLaborCost: own ? own.unitLaborCost : rows[idx].unitLaborCost,
+          printMinutes: rows[idx].printMinutes ?? itemPrintMinutes(itemSheet(i.cost, i.quantity), i.quantity),
+          costSource: own?.costSource ?? null,
+          costInput: own?.costInput ?? null,
+        };
+      }),
       payments: platform ? [] : plannedPayments(total, null),
     },
   });
@@ -267,6 +292,41 @@ export async function unmarkPayment(orderId: string, kind: "deposit" | "balance"
   if (error) return { ok: false, error: dbError(error) };
   revalidateOrders(orderId);
   return { ok: true, message: "Pagamento desfeito." };
+}
+
+/**
+ * "Definir custo" de um item avulso de um pedido existente (qualquer status, inclusive Entregue e Cancelado).
+ * Só muda o custo e a mão de obra do item (set_order_item_cost); preço, pagamentos e taxas ficam como estão.
+ */
+export async function setOrderItemCost(input: unknown): Promise<ActionResult> {
+  const parsed = parseInput(orderItemCostSchema, input);
+  if (!parsed.ok) return parsed;
+  const { itemId, cost } = parsed.data;
+  const supabase = await createClient();
+  const { data: item } = await supabase
+    .from("order_items")
+    .select("order_id, quantity, variant_id")
+    .eq("id", itemId)
+    .maybeSingle();
+  if (!item || item.variant_id) return { ok: false, error: "Item avulso não encontrado." };
+
+  const fields = itemCostFields(cost, item.quantity, await loadPricingContext(supabase));
+  if (!fields.ok) return { ok: false, error: fields.message };
+  // a função aceita null (remover o custo); o gerador de tipos não marca argumento como opcional
+  const { error } = await supabase.rpc("set_order_item_cost", {
+    p_item_id: itemId,
+    p_unit_cost: fields.unitCost as number,
+    p_unit_labor_cost: fields.unitLaborCost as number,
+    p_cost_source: fields.costSource as string,
+    p_cost_input: fields.costInput as Json,
+  });
+  if (error) {
+    if (error.message.includes("item_not_found")) return { ok: false, error: "Item avulso não encontrado." };
+    if (error.message.includes("invalid_")) return { ok: false, error: "Custo inválido." };
+    return { ok: false, error: dbError(error) };
+  }
+  revalidateOrders(item.order_id);
+  return { ok: true, message: cost ? "Custo do item salvo." : "Custo do item removido." };
 }
 
 /** Falha: o custo (filamento + máquina) é calculado aqui, com os valores atuais. */

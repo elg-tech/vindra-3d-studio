@@ -13,6 +13,8 @@ export type OrderCatalogOption = {
   label: string;
   /** Preço padrão por canal: o cadastrado na variação; senão o sugerido para o canal. */
   prices: Record<string, number | null>;
+  /** Custo por peça hoje (privado). */
+  cost: number | null;
 };
 
 export type OrderChannel = {
@@ -25,7 +27,7 @@ export type OrderChannel = {
 };
 
 export async function loadManualOrderData(supabase: Supabase) {
-  const [ctx, sheets, { data: products }, { data: customers }] = await Promise.all([
+  const [ctx, sheets, { data: products }, { data: customers }, { data: supplies }] = await Promise.all([
     loadPricingContext(supabase),
     loadSheets(supabase),
     supabase
@@ -34,6 +36,7 @@ export async function loadManualOrderData(supabase: Supabase) {
       .eq("active", true)
       .order("name"),
     supabase.from("customers").select("id, name").order("name"),
+    supabase.from("supplies").select("id, name, unit, unit_cost, is_packaging").order("name"),
   ]);
   const { tax_pct, default_margin_pct, rounding_rule } = ctx.settings;
   const sheetById = new Map(sheets.map((s) => [s.id, s.sheet]));
@@ -59,21 +62,26 @@ export async function loadManualOrderData(supabase: Supabase) {
         .filter((v) => v.active)
         .sort((a, b) => a.sort_order - b.sort_order)
         .map((v): OrderCatalogOption => {
-          const suggested = suggestedFor(costOf(v.cost_sheet_id));
+          const cost = costOf(v.cost_sheet_id);
+          const suggested = suggestedFor(cost);
           const stored = new Map(v.variant_channel_prices.map((x) => [x.channel_id, x.price]));
           return {
             kind: "variant",
             id: v.id,
             label: p.product_variants.length > 1 || v.name !== "Padrão" ? `${p.name} · ${v.name}` : p.name,
             prices: Object.fromEntries(ctx.channels.map((c) => [c.id, stored.get(c.id) ?? suggested[c.id]])),
+            cost,
           };
         }),
     ),
-    ...sheets.map((s): OrderCatalogOption => ({ kind: "sheet", id: s.id, label: s.name, prices: suggestedFor(costOf(s.id)) })),
+    ...sheets.map((s): OrderCatalogOption => {
+      const cost = costOf(s.id);
+      return { kind: "sheet", id: s.id, label: s.name, prices: suggestedFor(cost), cost };
+    }),
   ];
 
   // Venda direta: taxas do Pix (padrão); a taxa real entra em cada pagamento, pela forma usada
   const channels: OrderChannel[] = ctx.channels.map((c) => ({ id: c.id, name: c.name, kind: c.kind, ...channelFees(c) }));
 
-  return { options, channels, customers: customers ?? [] };
+  return { options, channels, customers: customers ?? [], ctx, supplies: supplies ?? [] };
 }

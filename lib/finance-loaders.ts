@@ -6,7 +6,7 @@ import type { createClient } from "@/lib/supabase/server";
 type Supabase = Awaited<ReturnType<typeof createClient>>;
 
 const ORDER_COLUMNS =
-  "id, number, status, created_at, total_amount, channel_fees, shipping_cost, paid_by_platform, consumed_at, sales_channels(name, kind), order_payments(kind, amount, paid_on, fee_amount), order_items(quantity, unit_price, unit_cost, unit_labor_cost, print_minutes, description, variant_id, product_variants(product_id, products(name)))";
+  "id, number, status, created_at, total_amount, channel_fees, shipping_cost, paid_by_platform, consumed_at, sales_channels(name, kind), order_payments(kind, amount, paid_on, fee_amount), order_items(id, quantity, unit_price, unit_cost, unit_labor_cost, print_minutes, description, variant_id, product_variants(product_id, products(name)))";
 
 const PAYMENT_ORDER: Record<PaymentKind, number> = { deposit: 0, balance: 1, full: 2 };
 
@@ -39,6 +39,8 @@ export async function loadFinance(supabase: Supabase) {
       .map((p) => ({ kind: p.kind as PaymentKind, amount: p.amount, paidOn: p.paid_on, fee: p.fee_amount }))
       .sort((a, b) => PAYMENT_ORDER[a.kind] - PAYMENT_ORDER[b.kind]),
     items: o.order_items.map((i) => ({
+      id: i.id,
+      description: i.description,
       quantity: i.quantity,
       unitPrice: i.unit_price,
       unitCost: i.unit_cost,
