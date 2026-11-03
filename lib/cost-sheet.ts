@@ -24,6 +24,13 @@ export type SheetFilament = {
   grams: number;
   /** O carretel escolhido foi excluído depois (o banco zerou filamentId). */
   spoolRemoved?: boolean;
+  /**
+   * Filamento do .3mf que esta linha substitui (só referência: custo e baixa usam o carretel/material acima).
+   * fileKey = slot|material|cor do arquivo.
+   */
+  fileKey?: string;
+  fileColorHex?: string;
+  fileMaterial?: string;
 };
 
 export type SheetExtra = {

@@ -87,6 +87,8 @@ describe("parseSliceInfo", () => {
     const [plate1, plate2] = parseSliceInfo(SLICE_INFO);
     expect(plate1).toEqual({
       index: 1,
+      name: null,
+      sliced: true,
       printSeconds: 5025,
       weightG: 42.18,
       objects: ["Suporte Controle Xbox"],
@@ -96,6 +98,7 @@ describe("parseSliceInfo", () => {
       ],
     });
     // mesa não fatiada
+    expect(plate2.sliced).toBe(false);
     expect(plate2.printSeconds).toBe(0);
     expect(plate2.filaments).toEqual([]);
   });
@@ -105,6 +108,8 @@ describe("parseGcodeHeader", () => {
   it("usa o tempo total e o peso por filamento", () => {
     expect(parseGcodeHeader(GCODE_HEADER)).toEqual({
       index: 1,
+      name: null,
+      sliced: true,
       printSeconds: 5326,
       weightG: 42.18,
       objects: [],
@@ -121,13 +126,17 @@ describe("parseGcodeHeader", () => {
 });
 
 describe("parseBambu3mf", () => {
-  it("arquivo fatiado: lê o slice_info e ignora mesas vazias", async () => {
+  it("arquivo fatiado: lê o slice_info; a mesa vazia vem marcada como não fatiada", async () => {
     const r = await parseBambu3mf(await zipWith({ "Metadata/slice_info.config": SLICE_INFO }));
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.source).toBe("slice_info");
-    expect(r.plates).toHaveLength(1);
+    expect(r.plates.map((p) => [p.index, p.sliced])).toEqual([
+      [1, true],
+      [2, false],
+    ]);
     expect(r.plates[0].printSeconds).toBe(5025);
+    expect(r.plates[1].filaments).toEqual([]);
   });
 
   it("sem slice_info útil: cai para o cabeçalho do G-code", async () => {

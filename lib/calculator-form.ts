@@ -1,6 +1,7 @@
 import type { ContextSpool, SheetData } from "@/lib/cost-sheet";
 import { MATERIALS, type Material } from "@/lib/filaments";
 import { parseDecimal } from "@/lib/numbers";
+import type { PlateImport } from "@/lib/plate-import";
 
 /** Estado do formulário da calculadora: tudo texto, como digitado. */
 export type CalcFormValues = {
@@ -19,10 +20,21 @@ export type CalcFormValues = {
    * source: "spool:<id>" ou "material:<Material>".
    * spoolRemoved: a ficha salva apontava para um carretel excluído (só para o aviso; trocar a fonte limpa).
    */
-  filaments: { source: string; grams: string; spoolRemoved?: boolean }[];
+  filaments: {
+    source: string;
+    grams: string;
+    spoolRemoved?: boolean;
+    /** Filamento do .3mf (cor e material do arquivo): só referência para a troca de cor. */
+    fileKey?: string;
+    fileColor?: string;
+    fileMaterial?: string;
+    fileType?: string;
+  }[];
   extras: { supplyId: string; name: string; quantity: string; unitCost: string }[];
   notes: string;
   sourceFilePath: string;
+  /** Mesas do .3mf importadas (para trocar as mesas sem enviar o arquivo de novo). */
+  plateImport?: PlateImport | null;
 };
 
 export const spoolSource = (id: string) => `spool:${id}`;
@@ -43,6 +55,7 @@ export const EMPTY_FORM: CalcFormValues = {
   extras: [],
   notes: "",
   sourceFilePath: "",
+  plateImport: null,
 };
 
 /**
@@ -67,14 +80,16 @@ export function formToSheet(values: CalcFormValues, spools: ContextSpool[]): { s
 
   const filaments = values.filaments.map((row, i) => {
     const grams = num(row.grams, `Filamento ${i + 1} (g)`);
+    // a cor do arquivo vai junto só como referência (custo e baixa usam o carretel/material escolhido)
+    const file = row.fileKey ? { fileKey: row.fileKey, fileColorHex: row.fileColor, fileMaterial: row.fileMaterial } : {};
     if (row.source.startsWith("spool:")) {
       const spool = spools.find((s) => s.id === row.source.slice(6));
-      if (spool) return { filamentId: spool.id, material: spool.material, colorHex: spool.color_hex, grams };
+      if (spool) return { filamentId: spool.id, material: spool.material, colorHex: spool.color_hex, grams, ...file };
       errors.push(`Filamento ${i + 1}: carretel não encontrado.`);
     }
     const m = row.source.startsWith("material:") ? row.source.slice(9) : "PLA";
     const material: Material = (MATERIALS as readonly string[]).includes(m) ? (m as Material) : "Outro";
-    return { filamentId: null, material, colorHex: null, grams, spoolRemoved: row.spoolRemoved ?? false };
+    return { filamentId: null, material, colorHex: null, grams, spoolRemoved: row.spoolRemoved ?? false, ...file };
   });
 
   const extras = values.extras.map((e, i) => ({
@@ -123,6 +138,7 @@ export function sheetToForm(
       source: f.filamentId ? spoolSource(f.filamentId) : materialSource(f.material),
       grams: field(f.grams),
       ...(f.spoolRemoved ? { spoolRemoved: true } : {}),
+      ...(f.fileKey ? { fileKey: f.fileKey, fileColor: f.fileColorHex, fileMaterial: f.fileMaterial } : {}),
     })),
     extras: sheet.extras.map((e) => ({
       supplyId: e.supplyId ?? "",

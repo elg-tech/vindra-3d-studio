@@ -65,7 +65,9 @@ export function storedItemCost(source: string | null, input: unknown): ItemCost 
 
 /** O que vai para cost_input no banco (a origem fica em cost_source). */
 export function costInputOf(cost: ItemCost): Json {
-  return (cost.source === "calc" ? { sheet: cost.sheet } : { cost: cost.cost, labor: cost.labor }) as Json;
+  if (cost.source === "manual") return { cost: cost.cost, labor: cost.labor };
+  // mesas do .3mf importadas: para reabrir e trocar as mesas sem enviar o arquivo de novo
+  return (cost.plateImport ? { sheet: cost.sheet, plateImport: cost.plateImport } : { sheet: cost.sheet }) as Json;
 }
 
 /** Campos do item para o banco. Sem custo: tudo nulo (o item continua permitido, com aviso). */

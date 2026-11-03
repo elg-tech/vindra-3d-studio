@@ -45,3 +45,5 @@ next-env.d.ts
 
 # arquivos .3mf reais ficam só na máquina (grandes); versionamos só os trechos usados nos testes
 tests/fixtures/*.3mf
+# fixture sintética (2 KB, gerada por tests/fixtures/tres-mesas/gerar.mjs): vai para o git
+!tests/fixtures/tres-mesas.gcode.3mf

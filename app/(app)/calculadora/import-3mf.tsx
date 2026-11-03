@@ -3,28 +3,21 @@
 import { FileUp, Loader2 } from "lucide-react";
 import { useId, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import type { BambuPlate } from "@/lib/bambu3mf";
 import { cn } from "@/lib/utils";
 
 const MAX_BYTES = 100 * 1024 * 1024; // mesmo limite do bucket "files"
 
-function duration(seconds: number) {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.round((seconds % 3600) / 60);
-  return h > 0 ? `${h}h ${m}min` : `${m}min`;
-}
-
 /**
  * Importa um .3mf fatiado do Bambu Studio. A leitura é feita no navegador
- * (o arquivo só sobe para o Storage ao salvar a ficha).
+ * (o arquivo só sobe para o Storage ao salvar a ficha). Devolve todas as mesas (inclusive as não fatiadas);
+ * quem chama mostra a lista para marcar quais entram.
  */
-export function Import3mf({ onImport }: { onImport: (plate: BambuPlate, file: File) => void }) {
+export function Import3mf({ onImport }: { onImport: (plates: BambuPlate[], file: File) => void }) {
   const inputId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
   const [dragging, setDragging] = useState(false);
-  const [choice, setChoice] = useState<{ file: File; plates: BambuPlate[] } | null>(null);
 
   async function handle(file: File) {
     if (!/\.3mf$/i.test(file.name)) {
@@ -44,42 +37,11 @@ export function Import3mf({ onImport }: { onImport: (plate: BambuPlate, file: Fi
         toast.error(result.error, { duration: 10_000 });
         return;
       }
-      if (result.plates.length === 1) onImport(result.plates[0], file);
-      else setChoice({ file, plates: result.plates });
+      onImport(result.plates, file);
     } finally {
       setLoading(false);
       if (inputRef.current) inputRef.current.value = "";
     }
-  }
-
-  if (choice) {
-    return (
-      <div className="grid gap-3 rounded-xl border p-4">
-        <p className="text-sm font-medium">Este arquivo tem {choice.plates.length} mesas fatiadas. Qual importar?</p>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {choice.plates.map((p) => (
-            <Button
-              key={p.index}
-              variant="outline"
-              className="h-auto flex-col items-start py-2 text-left"
-              onClick={() => {
-                onImport(p, choice.file);
-                setChoice(null);
-              }}
-            >
-              <span className="font-medium">Mesa {p.index}</span>
-              <span className="text-xs font-normal text-muted-foreground">
-                {duration(p.printSeconds)} · {p.filaments.reduce((s, f) => s + f.grams, 0).toLocaleString("pt-BR")} g
-                {p.objects.length > 0 && ` · ${p.objects.slice(0, 2).join(", ")}`}
-              </span>
-            </Button>
-          ))}
-        </div>
-        <Button variant="ghost" size="sm" className="w-fit" onClick={() => setChoice(null)}>
-          Cancelar
-        </Button>
-      </div>
-    );
   }
 
   return (
