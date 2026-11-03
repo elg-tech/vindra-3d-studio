@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { BambuPlate } from "@/lib/bambu3mf";
 import { type CalcFormValues, EMPTY_FORM, formToSheet } from "@/lib/calculator-form";
 import { type PricingContext, evaluateSheet } from "@/lib/cost-sheet";
 import { formatCurrency, formatGrams, formatNumber } from "@/lib/format";
@@ -61,8 +60,8 @@ export function Calculator({
   const margin = marginN !== null && marginN >= 0 && marginN < 100 ? marginN : ctx.settings.default_margin_pct;
 
   // SheetFields já preencheu tempo e filamentos; aqui só o nome da ficha e o arquivo a guardar
-  function onImported(plate: BambuPlate, file: File) {
-    if (!values.name) setValue("name", plate.objects[0] ?? file.name.replace(/(\.gcode)?\.3mf$/i, ""));
+  function onImported(suggestedName: string, file: File) {
+    if (!values.name) setValue("name", suggestedName);
     setPendingFile(file);
   }
 

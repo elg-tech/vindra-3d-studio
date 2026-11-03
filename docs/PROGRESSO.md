@@ -351,8 +351,28 @@ Problema: venda fechada fora do sistema com item personalizado (fora do catálog
 - **Testes:** unitários em `tests/item-cost.test.ts`; banco em `tests/db/item-cost.db.test.ts` (o segundo usuário de teste,
   `E2E_EMAIL_2`, prova que outro usuário não altera); Playwright 1280 e 390 (36/36, fora do repo).
 
+### Importação do .3mf: várias mesas e troca de cores (branch `import-3mf-mesas`, 03/11/2026)
+Sem migração (decisão do Enzo: opção "a").
+- **Parser** (`lib/bambu3mf.ts`) devolve todas as mesas do projeto com `sliced` e o nome (de
+  `Metadata/model_settings.config`). Mesa não fatiada aparece desabilitada ("não fatiada"). Nenhuma fatiada = erro de antes.
+- **Várias mesas** (`lib/plate-import.ts`, `combinePlates`): marcar com checkbox ("Todas"/"Nenhuma"); soma o tempo e as
+  gramas por filamento (chave = posição do AMS + material + cor, então a mesma posição em mesas diferentes soma).
+  2+ mesas = 1 kit: "peças por mesa" vai para 1 (editável) e a quantidade é o número de kits. Total e detalhamento
+  por mesa no painel. Trocar as mesas refaz tempo e gramas, mas mantém o carretel já escolhido para cada cor do arquivo.
+- **Troca de cores:** cada filamento importado mostra "Cor no arquivo: ● Laranja (PLA) · 40 g → Usar: [carretel]". A
+  sugestão é a mesma de antes (cor mais próxima do mesmo material). Duas cores podem usar o mesmo carretel (a baixa soma).
+  Material diferente do arquivo avisa. Custo e baixa usam só o carretel escolhido; a cor do arquivo é referência
+  (`fileKey`/`fileColorHex`/`fileMaterial` na linha da ficha).
+- **Item avulso:** o `cost_input` guarda as mesas importadas (`plateImport`) e a cor do arquivo por filamento; "Editar
+  custo" reabre a lista para trocar as mesas sem enviar o arquivo de novo. Custo antigo sem esses campos continua abrindo.
+- **Ficha da calculadora (opção "a"):** guarda os carretéis e as gramas somadas; ao reabrir, a lista de mesas e a cor do
+  arquivo não voltam (a tabela não tem onde guardar).
+- **Testes:** `tests/plate-import.test.ts` com a fixture `tests/fixtures/tres-mesas.gcode.3mf` (3 mesas fatiadas + 1 não
+  fatiada, gerada por `tests/fixtures/tres-mesas/gerar.mjs`); Playwright 1280 e 390 (42/42, fora do repo).
+
 ## Pendências
 
+- [ ] **Importação de várias mesas:** Enzo conferir o preview com um .3mf real de várias mesas. Merge só com o ok dele.
 - [x] **Custo no item avulso:** Enzo conferiu o preview e definiu pela tela o custo de todos os itens sem custo
   (31/10/2026); o DRE já mostra o custo dos produtos.
 - [x] **Taxa por pagamento — correção dos pedidos antigos:** só o PED-2026-0002 (R$ 180 no Pix) precisava; está com

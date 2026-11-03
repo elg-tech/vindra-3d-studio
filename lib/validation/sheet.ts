@@ -5,6 +5,7 @@ import { requiredText } from "./fields";
 // ---------------------------------------------------------------
 // Ficha de custo (calculadora) — chega já em números
 // ---------------------------------------------------------------
+const hex = z.string().regex(/^#[0-9A-Fa-f]{6}$/);
 const minutes = z.number().int("Use minutos inteiros.").min(0, "Não pode ser negativo.").max(100_000);
 
 export const costSheetSchema = z.object({
@@ -28,6 +29,10 @@ export const costSheetSchema = z.object({
           .regex(/^#[0-9A-Fa-f]{6}$/)
           .nullable(),
         grams: z.number().min(0, "Não pode ser negativo.").max(10_000),
+        // filamento do .3mf que a linha substitui (só referência para a troca de cor)
+        fileKey: z.string().max(80).optional(),
+        fileColorHex: hex.optional(),
+        fileMaterial: z.enum(MATERIALS).optional(),
       }),
     )
     .max(16, "No máximo 16 filamentos."),
@@ -46,6 +51,33 @@ export const costSheetSchema = z.object({
 });
 
 export type CostSheetInput = z.input<typeof costSheetSchema>;
+
+/** Mesas do .3mf importadas (guardadas no custo do item avulso para trocar as mesas depois). */
+export const plateImportSchema = z.object({
+  fileName: z.string().max(200),
+  plates: z
+    .array(
+      z.object({
+        index: z.number().int().min(0).max(1000),
+        name: z.string().max(120).nullable(),
+        sliced: z.boolean(),
+        printSeconds: z.number().int().min(0).max(10_000_000),
+        filaments: z
+          .array(
+            z.object({
+              slot: z.number().int().min(0).max(1000),
+              type: z.string().max(40),
+              material: z.enum(MATERIALS),
+              color: hex,
+              grams: z.number().min(0).max(100_000),
+            }),
+          )
+          .max(32),
+      }),
+    )
+    .max(64),
+  selected: z.array(z.number().int().min(0).max(1000)).max(64),
+});
 
 /**
  * Custo de um item avulso (sem produto nem ficha): mini calculadora (a ficha, sem nome) ou manual.
@@ -66,6 +98,7 @@ export const itemCostSchema = z.discriminatedUnion("source", [
       filaments: true,
       extras: true,
     }),
+    plateImport: plateImportSchema.optional(),
   }),
   z.object({
     source: z.literal("manual"),

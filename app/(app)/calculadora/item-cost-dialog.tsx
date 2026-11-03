@@ -96,7 +96,11 @@ function ItemCostBody({
   const form = useForm<CalcFormValues>({
     defaultValues:
       value?.source === "calc"
-        ? sheetToForm({ ...value.sheet, id: "", name: description, notes: null, sourceFilePath: null })
+        ? {
+            ...sheetToForm({ ...value.sheet, id: "", name: description, notes: null, sourceFilePath: null }),
+            // mesas do .3mf importadas antes: reabre com a lista para trocar as mesas
+            plateImport: value.plateImport ?? null,
+          }
         : { ...EMPTY_FORM, printerId: defaultPrinter?.id ?? "" },
   });
   const values = useWatch({ control: form.control }) as CalcFormValues;
@@ -115,7 +119,7 @@ function ItemCostBody({
   const candidate: ItemCost | null =
     tab === "calc"
       ? // formToSheet só produz materiais da lista (o servidor valida de novo)
-        ({ source: "calc", sheet } as ItemCost)
+        ({ source: "calc", sheet, ...(values.plateImport ? { plateImport: values.plateImport } : {}) } as ItemCost)
       : manualError
         ? null
         : { source: "manual", cost: manual.cost!, labor: manual.labor! };

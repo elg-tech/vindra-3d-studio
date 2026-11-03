@@ -25,6 +25,10 @@ export type BambuFilament = {
 
 export type BambuPlate = {
   index: number;
+  /** Nome da mesa no projeto (Bambu Studio), quando houver. */
+  name: string | null;
+  /** Mesa fatiada (tem tempo e filamentos). Mesa não fatiada aparece na lista, mas não pode ser importada. */
+  sliced: boolean;
   printSeconds: number;
   /** Peso total informado pelo fatiador (g), quando presente. */
   weightG: number | null;
@@ -33,6 +37,7 @@ export type BambuPlate = {
 };
 
 export type Bambu3mfResult =
+  /** plates: todas as mesas do projeto, em ordem; pelo menos uma fatiada. */
   | { ok: true; plates: BambuPlate[]; source: "slice_info" | "gcode" }
   | { ok: false; code: "invalid_file" | "not_bambu" | "not_sliced"; error: string };
 
@@ -137,9 +142,12 @@ export function parseSliceInfo(xml: string): BambuPlate[] {
       .filter((a) => a.skipped !== "true" && a.name)
       .map((a) => a.name);
 
+    const printSeconds = Math.round(toNumber(meta.prediction) ?? 0);
     plates.push({
       index: toNumber(meta.index) ?? plates.length + 1,
-      printSeconds: Math.round(toNumber(meta.prediction) ?? 0),
+      name: null,
+      sliced: printSeconds > 0 && filaments.length > 0,
+      printSeconds,
       weightG: toNumber(meta.weight),
       filaments,
       objects,
@@ -179,7 +187,41 @@ export function parseGcodeHeader(text: string, index = 1): BambuPlate | null {
     }))
     .filter((f) => f.grams > 0);
 
-  return { index, printSeconds: seconds, weightG: weights.reduce((s, g) => s + g, 0), filaments, objects: [] };
+  return { index, name: null, sliced: true, printSeconds: seconds, weightG: weights.reduce((s, g) => s + g, 0), filaments, objects: [] };
+}
+
+// ---------------------------------------------------------------
+// model_settings.config: todas as mesas do projeto (inclusive as não fatiadas) e o nome de cada uma
+// ---------------------------------------------------------------
+
+export function parseModelSettingsPlates(xml: string): { index: number; name: string | null }[] {
+  const plates: { index: number; name: string | null }[] = [];
+  for (const block of xml.matchAll(/<plate\b[^>]*>([\s\S]*?)<\/plate>/g)) {
+    const meta: Record<string, string> = {};
+    for (const tag of block[1].matchAll(/<metadata\b[^>]*\/?>/g)) {
+      const a = attributes(tag[0]);
+      if (a.key) meta[a.key] = a.value ?? "";
+    }
+    const index = toNumber(meta.plater_id);
+    if (index !== null) plates.push({ index, name: meta.plater_name?.trim() || null });
+  }
+  return plates;
+}
+
+/** Junta as mesas fatiadas com as não fatiadas do projeto, em ordem, com o nome de cada uma. */
+function withAllPlates(sliced: BambuPlate[], unsliced: BambuPlate[], project: { index: number; name: string | null }[]): BambuPlate[] {
+  const byIndex = new Map<number, BambuPlate>();
+  for (const p of unsliced) byIndex.set(p.index, p);
+  for (const p of project) {
+    if (!byIndex.has(p.index)) {
+      byIndex.set(p.index, { index: p.index, name: null, sliced: false, printSeconds: 0, weightG: null, filaments: [], objects: [] });
+    }
+  }
+  for (const p of sliced) byIndex.set(p.index, p);
+  const names = new Map(project.map((p) => [p.index, p.name]));
+  return [...byIndex.values()]
+    .map((p) => ({ ...p, name: names.get(p.index) ?? p.name }))
+    .sort((a, b) => a.index - b.index);
 }
 
 // ---------------------------------------------------------------
@@ -209,12 +251,13 @@ export async function parseBambu3mf(data: ArrayBuffer | Uint8Array | Blob): Prom
       : { ok: false, code: "not_bambu", error: ERRORS.not_bambu };
   }
 
-  if (sliceInfo) {
-    const plates = parseSliceInfo(await sliceInfo.async("string")).filter(
-      (p) => p.printSeconds > 0 && p.filaments.length > 0,
-    );
-    if (plates.length > 0) return { ok: true, plates, source: "slice_info" };
-  }
+  const modelSettings = zip.file(/^Metadata\/model_settings\.config$/i)[0];
+  const project = modelSettings ? parseModelSettingsPlates(await modelSettings.async("string")) : [];
+
+  const fromSliceInfo = sliceInfo ? parseSliceInfo(await sliceInfo.async("string")) : [];
+  const unsliced = fromSliceInfo.filter((p) => !p.sliced).map((p) => ({ ...p, printSeconds: 0, filaments: [] }));
+  const sliced = fromSliceInfo.filter((p) => p.sliced);
+  if (sliced.length > 0) return { ok: true, plates: withAllPlates(sliced, unsliced, project), source: "slice_info" };
 
   const fromGcode: BambuPlate[] = [];
   for (const file of gcodes) {
@@ -223,7 +266,7 @@ export async function parseBambu3mf(data: ArrayBuffer | Uint8Array | Blob): Prom
     if (plate) fromGcode.push(plate);
   }
   if (fromGcode.length > 0) {
-    return { ok: true, plates: fromGcode.sort((a, b) => a.index - b.index), source: "gcode" };
+    return { ok: true, plates: withAllPlates(fromGcode, unsliced, project), source: "gcode" };
   }
 
   return { ok: false, code: "not_sliced", error: ERRORS.not_sliced };
