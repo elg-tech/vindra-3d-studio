@@ -351,7 +351,7 @@ Problema: venda fechada fora do sistema com item personalizado (fora do catálog
 - **Testes:** unitários em `tests/item-cost.test.ts`; banco em `tests/db/item-cost.db.test.ts` (o segundo usuário de teste,
   `E2E_EMAIL_2`, prova que outro usuário não altera); Playwright 1280 e 390 (36/36, fora do repo).
 
-### Importação do .3mf: várias mesas e troca de cores (branch `import-3mf-mesas`, 03/11/2026)
+### Importação do .3mf: várias mesas e troca de cores (commits `523e255` e `c446374`, merge `f26372f` em 03/11/2026)
 Sem migração (decisão do Enzo: opção "a").
 - **Parser** (`lib/bambu3mf.ts`) devolve todas as mesas do projeto com `sliced` e o nome (de
   `Metadata/model_settings.config`). Mesa não fatiada aparece desabilitada ("não fatiada"). Nenhuma fatiada = erro de antes.
@@ -372,7 +372,8 @@ Sem migração (decisão do Enzo: opção "a").
 
 ## Pendências
 
-- [ ] **Importação de várias mesas:** Enzo conferir o preview com um .3mf real de várias mesas. Merge só com o ok dele.
+- [x] **Importação de várias mesas:** Enzo conferiu no preview com um .3mf real de 3 mesas (03/11/2026): tempo e gramas
+  de cada mesa batem com o Bambu Studio; soma, seleção parcial, troca de cor e "Editar custo" reabrindo as mesas ok.
 - [x] **Custo no item avulso:** Enzo conferiu o preview e definiu pela tela o custo de todos os itens sem custo
   (31/10/2026); o DRE já mostra o custo dos produtos.
 - [x] **Taxa por pagamento — correção dos pedidos antigos:** só o PED-2026-0002 (R$ 180 no Pix) precisava; está com
@@ -388,10 +389,9 @@ Sem migração (decisão do Enzo: opção "a").
 - [ ] **Conferir o financeiro com pedidos reais.** A conta de teste não tinha pedidos pagos na conferência da
   Fase 9: DRE, gráficos, top 5 e "A receber" com pedidos foram cobertos só pelos testes unitários. Conferir com o
   primeiro mês de vendas (sinal e restante em meses diferentes, um pedido Shopee, uma falha).
-- [ ] **`.3mf` fatiado real.** O único `.3mf` real testado era um projeto **sem fatiar** (sem tempo nem gramas).
-  Fatiar uma mesa multicor, exportar com *Arquivo → Exportar → Exportar arquivo de mesa fatiada*
-  (`.gcode.3mf`) e comparar a soma dos filamentos com o total do Bambu Studio (modelo + purga + torre)
-  e com a pesagem real. Se não bater, a importação precisa preencher a purga com a diferença.
+- [x] **`.3mf` fatiado real e purga:** o Enzo importou um `.3mf` real fatiado de 3 mesas (03/11/2026) e as gramas
+  importadas batem com o total do Bambu Studio (modelo + purga + torre). Confirmado: as gramas do fatiador já incluem
+  purga e torre, então a importação continua deixando "purga" em 0. A comparação com a pesagem real da peça não foi feita.
 - [x] **Impressora A1 x A1 mini:** o Enzo confirmou em 28/10/2026 que é a **A1** (o seed já cadastra a A1). O `.3mf`
   de A1 mini recebido era só um arquivo de modelo.
 - [x] **Foto por variação** (Fase 10).
