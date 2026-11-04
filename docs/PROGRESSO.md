@@ -401,15 +401,19 @@ ao montar kit, a taxa fixa do canal e a embalagem eram contadas por peça. Plano
   o preço manual por kit e canal. "Salvar como produto" cria uma variação por kit, com os preços manuais digitados.
   Na importação de várias mesas, "1 kit" virou "1 conjunto" (kit agora é o pacote do cliente).
 - **Impressora padrão:** já era configurável (Configurações → Impressoras, "Impressora padrão da calculadora").
+- **Margem e preços manuais sobrevivem ao primeiro "Salvar ficha"** (a página troca de endereço e recria a calculadora;
+  sem isso o "Salvar como produto" perdia os preços digitados). Ficam numa variável do módulo, pela ficha salva.
 - **Testes:** unitários da fórmula do kit (taxa fixa e embalagem 1× por kit), do lote, da baixa de 1 × Kit 5 e do
-  formulário; banco em `tests/db/kits.db.test.ts` (roda depois do `db:push`; o segundo usuário prova que não altera).
+  formulário (274); banco em `tests/db/kits.db.test.ts` (13/13 com os anteriores; o segundo usuário prova que não
+  altera); Playwright 1280 e 390 com o tubarão (41/41, fora do repo): importação, tempo/gramas por peça, lote de 12
+  (3 mesas, última com 2 de 5, 5h48, 72 g), aviso de embalagem zerada, kits 1/3/5, preço manual, comparativo, ficha e
+  produto com uma variação por kit e o preço manual levado, sem rolagem horizontal e sem card cortado.
+- Migração aplicada pelo Enzo em 03/11/2026; tipos regenerados (só mudou a ordem das colunas).
 
 ## Pendências
 
-- [ ] **Calculadora produção x venda:** Enzo roda o dry-run e o `npm run db:push` da migração
-  `20261104120000_kits_producao_venda`; depois `npm run db:types`, `npm run test:db` e o Playwright 1280/390 (a pasta
-  `C:\Vindra\vindra-3d-studio` não tem `.env.local` nem o link do Supabase). Conferir o tubarão no preview com a
-  configuração real (kit 1, 3 e 5 na Shopee e no TikTok; preços manuais R$ 21,90 / 34,90 / 44,90).
+- [ ] **Calculadora produção x venda:** Enzo confere o tubarão no preview com a configuração real (kit 1, 3 e 5 na
+  Shopee e no TikTok; preços manuais R$ 21,90 / 34,90 / 44,90) e dá o ok para o merge.
 
 - [x] **Importação de várias mesas:** Enzo conferiu no preview com um .3mf real de 3 mesas (03/11/2026): tempo e gramas
   de cada mesa batem com o Bambu Studio; soma, seleção parcial, troca de cor e "Editar custo" reabrindo as mesas ok.

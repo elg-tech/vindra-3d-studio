@@ -73,36 +73,36 @@ export type Database = {
       }
       cost_sheet_supplies: {
         Row: {
-          per_order: boolean
           cost_sheet_id: string
           created_at: string
           id: string
           name: string
           owner_id: string
+          per_order: boolean
           quantity: number
           supply_id: string | null
           unit_cost: number
           updated_at: string
         }
         Insert: {
-          per_order?: boolean
           cost_sheet_id: string
           created_at?: string
           id?: string
           name: string
           owner_id?: string
+          per_order?: boolean
           quantity?: number
           supply_id?: string | null
           unit_cost: number
           updated_at?: string
         }
         Update: {
-          per_order?: boolean
           cost_sheet_id?: string
           created_at?: string
           id?: string
           name?: string
           owner_id?: string
+          per_order?: boolean
           quantity?: number
           supply_id?: string | null
           unit_cost?: number
@@ -127,14 +127,14 @@ export type Database = {
       }
       cost_sheets: {
         Row: {
-          kit_sizes: number[]
-          pack_minutes: number
           calculated_at: string | null
           created_at: string
           id: string
+          kit_sizes: number[]
           name: string
           notes: string | null
           owner_id: string
+          pack_minutes: number
           packaging_cost: number
           pieces_per_plate: number
           post_minutes: number
@@ -148,14 +148,14 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          kit_sizes?: number[]
-          pack_minutes?: number
           calculated_at?: string | null
           created_at?: string
           id?: string
+          kit_sizes?: number[]
           name: string
           notes?: string | null
           owner_id?: string
+          pack_minutes?: number
           packaging_cost?: number
           pieces_per_plate?: number
           post_minutes?: number
@@ -169,14 +169,14 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          kit_sizes?: number[]
-          pack_minutes?: number
           calculated_at?: string | null
           created_at?: string
           id?: string
+          kit_sizes?: number[]
           name?: string
           notes?: string | null
           owner_id?: string
+          pack_minutes?: number
           packaging_cost?: number
           pieces_per_plate?: number
           post_minutes?: number
@@ -426,7 +426,6 @@ export type Database = {
       }
       order_items: {
         Row: {
-          pieces_per_kit: number
           cost_input: Json | null
           cost_sheet_id: string | null
           cost_source: string | null
@@ -435,6 +434,7 @@ export type Database = {
           id: string
           order_id: string
           owner_id: string
+          pieces_per_kit: number
           print_minutes: number | null
           quantity: number
           unit_cost: number | null
@@ -444,7 +444,6 @@ export type Database = {
           variant_id: string | null
         }
         Insert: {
-          pieces_per_kit?: number
           cost_input?: Json | null
           cost_sheet_id?: string | null
           cost_source?: string | null
@@ -453,6 +452,7 @@ export type Database = {
           id?: string
           order_id: string
           owner_id?: string
+          pieces_per_kit?: number
           print_minutes?: number | null
           quantity?: number
           unit_cost?: number | null
@@ -462,7 +462,6 @@ export type Database = {
           variant_id?: string | null
         }
         Update: {
-          pieces_per_kit?: number
           cost_input?: Json | null
           cost_sheet_id?: string | null
           cost_source?: string | null
@@ -471,6 +470,7 @@ export type Database = {
           id?: string
           order_id?: string
           owner_id?: string
+          pieces_per_kit?: number
           print_minutes?: number | null
           quantity?: number
           unit_cost?: number | null
@@ -754,7 +754,6 @@ export type Database = {
       }
       product_variants: {
         Row: {
-          pieces_per_kit: number
           active: boolean
           cost_sheet_id: string | null
           created_at: string
@@ -762,13 +761,13 @@ export type Database = {
           image_path: string | null
           name: string
           owner_id: string
+          pieces_per_kit: number
           product_id: string
           sku: string | null
           sort_order: number
           updated_at: string
         }
         Insert: {
-          pieces_per_kit?: number
           active?: boolean
           cost_sheet_id?: string | null
           created_at?: string
@@ -776,13 +775,13 @@ export type Database = {
           image_path?: string | null
           name: string
           owner_id?: string
+          pieces_per_kit?: number
           product_id: string
           sku?: string | null
           sort_order?: number
           updated_at?: string
         }
         Update: {
-          pieces_per_kit?: number
           active?: boolean
           cost_sheet_id?: string | null
           created_at?: string
@@ -790,6 +789,7 @@ export type Database = {
           image_path?: string | null
           name?: string
           owner_id?: string
+          pieces_per_kit?: number
           product_id?: string
           sku?: string | null
           sort_order?: number
@@ -859,7 +859,6 @@ export type Database = {
       }
       quote_items: {
         Row: {
-          pieces_per_kit: number
           cost_input: Json | null
           cost_sheet_id: string | null
           cost_source: string | null
@@ -868,6 +867,7 @@ export type Database = {
           id: string
           image_path: string | null
           owner_id: string
+          pieces_per_kit: number
           quantity: number
           quote_id: string
           sort_order: number
@@ -878,7 +878,6 @@ export type Database = {
           variant_id: string | null
         }
         Insert: {
-          pieces_per_kit?: number
           cost_input?: Json | null
           cost_sheet_id?: string | null
           cost_source?: string | null
@@ -887,6 +886,7 @@ export type Database = {
           id?: string
           image_path?: string | null
           owner_id?: string
+          pieces_per_kit?: number
           quantity?: number
           quote_id: string
           sort_order?: number
@@ -897,7 +897,6 @@ export type Database = {
           variant_id?: string | null
         }
         Update: {
-          pieces_per_kit?: number
           cost_input?: Json | null
           cost_sheet_id?: string | null
           cost_source?: string | null
@@ -906,6 +905,7 @@ export type Database = {
           id?: string
           image_path?: string | null
           owner_id?: string
+          pieces_per_kit?: number
           quantity?: number
           quote_id?: string
           sort_order?: number

@@ -252,7 +252,7 @@ function Comparison({
   const header = (divider: boolean) => (
     <>
       <th scope="col" className={cn("px-2 py-1.5 text-right font-medium", divider && "border-l")}>
-        Kit
+        Preço kit
       </th>
       <th scope="col" className="px-2 py-1.5 text-right font-medium">
         Por peça
@@ -326,7 +326,7 @@ function Comparison({
       </div>
 
       {/* celular: um canal por aba */}
-      <Tabs defaultValue={ctx.channels[0]?.id} className="md:hidden">
+      <Tabs defaultValue={ctx.channels[0]?.id} className="min-w-0 md:hidden">
         <TabsList className="w-full">
           {ctx.channels.map((c) => (
             <TabsTrigger key={c.id} value={c.id} className="min-w-0">
@@ -335,7 +335,7 @@ function Comparison({
           ))}
         </TabsList>
         {ctx.channels.map((c) => (
-          <TabsContent key={c.id} value={c.id} className="overflow-x-auto">
+          <TabsContent key={c.id} value={c.id} className="min-w-0 overflow-x-auto">
             <table className="w-full text-sm" aria-label={`Comparativo de kits na ${c.name}`}>
               <thead className="border-b text-xs text-muted-foreground">
                 <tr>
@@ -399,8 +399,8 @@ export function KitPrices({
   }
 
   return (
-    <div className="grid gap-6">
-      <Tabs value={current} onValueChange={setTab}>
+    <div className="grid min-w-0 gap-6 *:min-w-0">
+      <Tabs value={current} onValueChange={setTab} className="min-w-0">
         <TabsList className="w-full sm:w-fit">
           {kits.map((n) => (
             <TabsTrigger key={n} value={String(n)}>
@@ -409,7 +409,7 @@ export function KitPrices({
           ))}
         </TabsList>
         {kits.map((n) => (
-          <TabsContent key={n} value={String(n)} className="grid gap-3 pt-2">
+          <TabsContent key={n} value={String(n)} className="grid min-w-0 gap-3 pt-2">
             <p className="text-sm text-muted-foreground tabular-nums">
               Custo do kit ({piecesLabel(n)}): {n} × {formatCurrency(result.piece.total)} + {formatCurrency(result.order.total)} do
               pedido = <strong className="font-medium text-foreground">{formatCurrency(kitCost(result, n))}</strong>
@@ -432,7 +432,7 @@ export function KitPrices({
         ))}
       </Tabs>
 
-      <section className="grid gap-3" aria-labelledby="comparativo">
+      <section className="grid min-w-0 gap-3" aria-labelledby="comparativo">
         <h3 id="comparativo" className="text-base font-semibold">
           Comparativo
         </h3>

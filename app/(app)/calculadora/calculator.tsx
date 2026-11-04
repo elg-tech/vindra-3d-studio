@@ -24,6 +24,15 @@ import { OrderCostFields, SheetFields, type SupplyOption } from "./sheet-fields"
 
 export type { SupplyOption } from "./sheet-fields";
 
+/** Margem e preços manuais (não ficam no banco) levados de uma montagem da calculadora para a próxima. */
+type Carried = { sheetId: string; marginPct: string; manualPrices: ManualPrices };
+let carry: Carried | null = null;
+
+/** O que foi levado para esta ficha (só lê: o React pode chamar o inicializador duas vezes). */
+function takeCarried(sheetId: string | undefined): Carried | null {
+  return carry && carry.sheetId === sheetId ? carry : null;
+}
+
 /** "Peças por kit": lista editável (ex.: 1, 3, 5). */
 function KitSizesField({ form }: { form: UseFormReturn<CalcFormValues> }) {
   const { control, register } = form;
@@ -88,8 +97,12 @@ export function Calculator({
   const router = useRouter();
   const [isSaving, startSaving] = useTransition();
   const [pendingFile, setPendingFile] = useState<File | null>(null);
-  const [marginPct, setMarginPct] = useState(String(ctx.settings.default_margin_pct).replace(".", ","));
-  const [manualPrices, setManualPrices] = useState<ManualPrices>({});
+  // ao salvar uma ficha nova a página troca de endereço e recria a calculadora: margem e preços manuais vêm junto
+  const [carried] = useState(() => takeCarried(initial?.id));
+  const [marginPct, setMarginPct] = useState(
+    carried?.marginPct ?? String(ctx.settings.default_margin_pct).replace(".", ","),
+  );
+  const [manualPrices, setManualPrices] = useState<ManualPrices>(carried?.manualPrices ?? {});
 
   const defaultPrinter = ctx.printers.find((p) => p.is_default) ?? ctx.printers[0];
   const form = useForm<CalcFormValues>({
@@ -157,6 +170,7 @@ export function Calculator({
       toast.success(result.message);
       setPendingFile(null);
       if (result.data) {
+        carry = { sheetId: result.data.id, marginPct, manualPrices };
         setValue("id", result.data.id);
         if (sourceFilePath) setValue("sourceFilePath", sourceFilePath);
         router.replace(`/calculadora?ficha=${result.data.id}`, { scroll: false });
@@ -168,6 +182,7 @@ export function Calculator({
     reset({ ...EMPTY_FORM, printerId: defaultPrinter?.id ?? "" });
     setPendingFile(null);
     setManualPrices({});
+    carry = null;
     router.replace("/calculadora", { scroll: false });
   }
 
@@ -191,7 +206,7 @@ export function Calculator({
   }));
 
   return (
-    <form onSubmit={onSave} noValidate className="grid gap-8">
+    <form onSubmit={onSave} noValidate className="grid gap-8 *:min-w-0">
       {/* PRODUÇÃO */}
       <section aria-labelledby="bloco-producao" className="grid gap-4">
         <div>
@@ -275,7 +290,7 @@ export function Calculator({
       </section>
 
       {/* VENDA */}
-      <section aria-labelledby="bloco-venda" className="grid gap-4">
+      <section aria-labelledby="bloco-venda" className="grid gap-4 *:min-w-0">
         <div>
           <h2 id="bloco-venda" className="text-lg font-semibold tracking-tight">
             2. Venda
@@ -321,7 +336,7 @@ export function Calculator({
           <CardHeader>
             <CardTitle>Preço por kit e canal</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="min-w-0">
             <KitPrices
               result={hasBasics ? result : null}
               blockedMessage={blockedMessage}
