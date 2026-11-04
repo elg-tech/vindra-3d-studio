@@ -60,6 +60,19 @@ const sheet = (filament: Partial<SheetFilament> = {}, over: Partial<SheetData> =
 
 const channel = (v: VariantPricing, id: string) => v.channels.find((c) => c.channelId === id)!;
 
+describe("priceVariant com kit", () => {
+  it("custo da unidade = peças × custo da peça + custos do pedido; taxa fixa uma vez", () => {
+    // peça R$ 11,00 (100 g + 10% de falha); embalagem R$ 2,00 por pedido, sem falha
+    const s = sheet({}, { packagingCost: 2 });
+    expect(priceVariant(s, {}, ctx).unitCost).toBeCloseTo(13, 6);
+    const kit5 = priceVariant(s, { shopee: 90 }, ctx, 5);
+    expect(kit5.unitCost).toBeCloseTo(57, 6);
+    // 90 − (18 + 4 uma vez) − 57 = 11
+    expect(channel(kit5, "shopee").profit?.profit).toBeCloseTo(11, 6);
+    expect(channel(kit5, "shopee").profit?.channelFees).toBeCloseTo(22, 6);
+  });
+});
+
 describe("priceVariant", () => {
   it("usa o custo atual da ficha e calcula o lucro no preço de cada canal", () => {
     const v = priceVariant(sheet(), { shopee: 40, direto: 30 }, ctx);

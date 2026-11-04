@@ -84,6 +84,24 @@ describe("expectedConsumption", () => {
     ]);
     expect(lines).toEqual([{ filamentId: "preto", material: "PLA", colorHex: "#111111", grams: 120 }]);
   });
+
+  it("kit: 1 unidade de \"Kit 5\" prevê a baixa de 5 peças", () => {
+    // tubarão: 29,98 g por mesa de 5 → 5,996 g por peça
+    const tubarao = sheet({
+      piecesPerPlate: 5,
+      filaments: [
+        { filamentId: "azul", material: "PLA", colorHex: "#0086D6", grams: 26.71 },
+        { filamentId: "preto", material: "PLA", colorHex: "#000000", grams: 3.27 },
+      ],
+    });
+    expect(expectedConsumption([{ sheet: tubarao, quantity: 1, piecesPerKit: 5 }])).toEqual([
+      { filamentId: "azul", material: "PLA", colorHex: "#0086D6", grams: 26.7 },
+      { filamentId: "preto", material: "PLA", colorHex: "#000000", grams: 3.3 },
+    ]);
+    // 2 × Kit 3 = 6 peças; sem peças por kit = 1 (itens antigos)
+    expect(expectedConsumption([{ sheet: tubarao, quantity: 2, piecesPerKit: 3 }])[0].grams).toBeCloseTo(32.1, 6);
+    expect(expectedConsumption([{ sheet: tubarao, quantity: 1 }])[0].grams).toBeCloseTo(5.3, 6);
+  });
 });
 
 describe("suggestSpool", () => {
@@ -127,6 +145,8 @@ describe("fila de impressão", () => {
   it("tempo do item: por mesa × mesas", () => {
     expect(itemPrintMinutes(sheet({ piecesPerPlate: 4 }), 6)).toBe(180);
     expect(itemPrintMinutes(null, 3)).toBeNull();
+    // 1 × Kit 5 com 5 por mesa = uma mesa de 116 min
+    expect(itemPrintMinutes(sheet({ piecesPerPlate: 5, printMinutes: 116 }), 1, 5)).toBe(116);
   });
 });
 

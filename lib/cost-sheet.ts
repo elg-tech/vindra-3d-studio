@@ -7,6 +7,7 @@ import {
   PricingInputError,
   type RoundingRule,
   calculateCost,
+  kitCost,
 } from "@/lib/pricing";
 
 /**
@@ -36,9 +37,11 @@ export type SheetFilament = {
 export type SheetExtra = {
   supplyId: string | null;
   name: string;
-  /** Quantidade por peça. */
+  /** Quantidade por peça (ou por pedido, com perOrder). */
   quantity: number;
   unitCost: number;
+  /** Insumo do pedido (etiqueta), uma vez por kit. Ausente = por peça (fichas antigas). */
+  perOrder?: boolean;
 };
 
 export type SheetData = {
@@ -47,9 +50,15 @@ export type SheetData = {
   prepMinutes: number;
   postMinutes: number;
   purgeG: number;
+  /** Embalagem por pedido (kit). */
   packagingCost: number;
+  /** Peças produzidas no lote ("Quero produzir X peças"): divide o preparo. */
   quantity: number;
   piecesPerPlate: number;
+  /** Separar, embalar e enviar, por pedido (min). Ausente = 0. */
+  packMinutes?: number;
+  /** Kits da calculadora (peças por kit). Ausente = [1]. */
+  kitSizes?: number[];
   filaments: SheetFilament[];
   extras: SheetExtra[];
 };
@@ -64,6 +73,8 @@ export type CostSheetRow = {
   packaging_cost: number;
   quantity: number;
   pieces_per_plate: number;
+  pack_minutes: number;
+  kit_sizes: number[];
   cost_sheet_filaments: {
     filament_id: string | null;
     material: string;
@@ -72,7 +83,7 @@ export type CostSheetRow = {
     sort_order: number;
     spool_removed: boolean;
   }[];
-  cost_sheet_supplies: { supply_id: string | null; name: string; quantity: number; unit_cost: number }[];
+  cost_sheet_supplies: { supply_id: string | null; name: string; quantity: number; unit_cost: number; per_order: boolean }[];
 };
 
 export function sheetFromRow(s: CostSheetRow): SheetData {
@@ -85,6 +96,8 @@ export function sheetFromRow(s: CostSheetRow): SheetData {
     packagingCost: s.packaging_cost,
     quantity: s.quantity,
     piecesPerPlate: s.pieces_per_plate,
+    packMinutes: s.pack_minutes,
+    kitSizes: s.kit_sizes,
     filaments: [...s.cost_sheet_filaments]
       .sort((a, b) => a.sort_order - b.sort_order)
       .map((f) => ({
@@ -99,6 +112,7 @@ export function sheetFromRow(s: CostSheetRow): SheetData {
       name: e.name,
       quantity: e.quantity,
       unitCost: e.unit_cost,
+      perOrder: e.per_order,
     })),
   };
 }
@@ -257,6 +271,13 @@ export function evaluateSheet(sheet: SheetData, ctx: PricingContext): SheetEvalu
   }
 }
 
+/** Custo de uma unidade vendida (kit de n peças) pela ficha, agora; null sem custo. */
+export function sheetKitCost(sheet: SheetData | null | undefined, ctx: PricingContext, piecesPerKit = 1): number | null {
+  if (!sheet) return null;
+  const evaluation = evaluateSheet(sheet, ctx);
+  return evaluation.ok ? kitCost(evaluation.result, piecesPerKit) : null;
+}
+
 export function toCostInput(sheet: SheetData, ctx: PricingContext): CostInput {
   return {
     filaments: sheet.filaments.map((row) => {
@@ -270,7 +291,8 @@ export function toCostInput(sheet: SheetData, ctx: PricingContext): CostInput {
     prepMinutes: sheet.prepMinutes,
     postMinutes: sheet.postMinutes,
     packagingCost: sheet.packagingCost,
-    extras: sheet.extras.map((e) => ({ quantity: e.quantity, unitCost: e.unitCost })),
+    packMinutes: sheet.packMinutes ?? 0,
+    extras: sheet.extras.map((e) => ({ quantity: e.quantity, unitCost: e.unitCost, perOrder: e.perOrder ?? false })),
     printer: printerCosts(ctx.printers.find((p) => p.id === sheet.printerId)),
     energyRateKwh: ctx.settings.energy_rate_kwh,
     laborHourRate: ctx.settings.labor_hour_rate,

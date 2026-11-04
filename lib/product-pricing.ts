@@ -1,5 +1,12 @@
 import { type PricingContext, type SheetData, channelFees, creditChannelFees, evaluateSheet } from "@/lib/cost-sheet";
-import { type ProfitResult, type SuggestedPrice, isChannelConfigured, profitAtPrice, suggestPrice } from "@/lib/pricing";
+import {
+  type ProfitResult,
+  type SuggestedPrice,
+  isChannelConfigured,
+  kitCost,
+  profitAtPrice,
+  suggestPrice,
+} from "@/lib/pricing";
 
 /**
  * Lucro de cada variação em cada canal, recalculado com os preços e taxas ATUAIS
@@ -51,6 +58,7 @@ export type ChannelPricing = {
 };
 
 export type VariantPricing = {
+  /** Custo de uma unidade vendida: o kit inteiro (peças por kit × custo da peça + custos do pedido). */
   unitCost: number | null;
   /** Carretel que acabou ou foi excluído, material sem estoque, ficha inválida, sem custo de filamento. */
   warnings: string[];
@@ -61,7 +69,12 @@ export type VariantPricing = {
 /** Preço por canal: chave = id do canal; ausente, null ou ≤ 0 = sem preço. */
 export type VariantPrices = Record<string, number | null | undefined>;
 
-export function priceVariant(sheet: SheetData | null, prices: VariantPrices, ctx: PricingContext): VariantPricing {
+export function priceVariant(
+  sheet: SheetData | null,
+  prices: VariantPrices,
+  ctx: PricingContext,
+  piecesPerKit = 1,
+): VariantPricing {
   const { tax_pct, min_margin_pct, default_margin_pct, rounding_rule } = ctx.settings;
   const warnings: string[] = [];
   let unitCost: number | null = null;
@@ -70,7 +83,7 @@ export function priceVariant(sheet: SheetData | null, prices: VariantPrices, ctx
   if (sheet) {
     const evaluation = evaluateSheet(sheet, ctx);
     warnings.push(...evaluation.warnings);
-    if (evaluation.ok) unitCost = evaluation.result.unit.total;
+    if (evaluation.ok) unitCost = kitCost(evaluation.result, piecesPerKit);
     else if (evaluation.reason === "no_filament_cost") {
       blocked = "no_filament_cost";
       warnings.push(evaluation.message);

@@ -17,8 +17,16 @@ export const costSheetSchema = z.object({
   postMinutes: minutes,
   purgeG: z.number().min(0, "Não pode ser negativo.").max(10_000),
   packagingCost: z.number().min(0, "Não pode ser negativo.").max(100_000),
+  /** Peças produzidas no lote ("Quero produzir X peças"): divide o preparo. */
   quantity: z.number().int("Use um número inteiro.").min(1, "Mínimo 1.").max(10_000),
   piecesPerPlate: z.number().int("Use um número inteiro.").min(1, "Mínimo 1.").max(1_000),
+  /** Separar, embalar e enviar, por pedido. Opcional: custos de itens avulsos antigos não têm. */
+  packMinutes: minutes.optional(),
+  kitSizes: z
+    .array(z.number().int("Use um número inteiro.").min(1, "Mínimo 1.").max(1_000))
+    .min(1)
+    .max(10, "No máximo 10 kits.")
+    .optional(),
   filaments: z
     .array(
       z.object({
@@ -43,6 +51,8 @@ export const costSheetSchema = z.object({
         name: requiredText(80),
         quantity: z.number().positive("Quantidade precisa ser maior que zero.").max(10_000),
         unitCost: z.number().min(0, "Não pode ser negativo.").max(100_000),
+        /** Insumo do pedido (etiqueta), uma vez por kit; ausente = por peça. */
+        perOrder: z.boolean().optional(),
       }),
     )
     .max(30, "No máximo 30 insumos."),
@@ -95,6 +105,7 @@ export const itemCostSchema = z.discriminatedUnion("source", [
       packagingCost: true,
       quantity: true,
       piecesPerPlate: true,
+      packMinutes: true,
       filaments: true,
       extras: true,
     }),

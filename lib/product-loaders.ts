@@ -14,7 +14,7 @@ export async function loadProductSummaries(supabase: Supabase) {
     supabase
       .from("products")
       .select(
-        "id, name, sku, image_path, active, product_variants(id, name, sku, active, sort_order, cost_sheet_id, variant_channel_prices(channel_id, price))",
+        "id, name, sku, image_path, active, product_variants(id, name, sku, active, sort_order, cost_sheet_id, pieces_per_kit, variant_channel_prices(channel_id, price))",
       )
       .order("name"),
   ]);
@@ -29,6 +29,7 @@ export async function loadProductSummaries(supabase: Supabase) {
           (v.cost_sheet_id && sheetById.get(v.cost_sheet_id)) || null,
           Object.fromEntries(v.variant_channel_prices.map((x) => [x.channel_id, x.price])),
           ctx,
+          v.pieces_per_kit,
         ),
       ),
     );

@@ -18,7 +18,7 @@ import {
 } from "@/lib/orders";
 import { formatCurrency } from "@/lib/format";
 import { PAYMENT_RATE_COLUMNS, paymentFee, paymentRates } from "@/lib/payment-fees";
-import { profitAtPrice } from "@/lib/pricing";
+import { orderChannelFees } from "@/lib/pricing";
 import { loadPricingContext } from "@/lib/pricing-context";
 import { type DiscountType, quoteTotals } from "@/lib/quotes";
 import type { Json } from "@/lib/supabase/database.types";
@@ -60,16 +60,21 @@ function revalidateOrders(id?: string) {
   revalidatePath("/dashboard");
 }
 
-/** Custo por peça (agora) e tempo de impressão de cada item, pela ficha do banco. */
+/**
+ * Custo de uma unidade (agora) e tempo de impressão de cada item, pela ficha do banco.
+ * Variação de kit: a unidade é o kit (custo das n peças + custos do pedido; tempo de n peças).
+ * piecesPerKit do item (orçamento) vale sobre o da variação.
+ */
 async function itemsFromSheets(
   supabase: Supabase,
-  items: { variantId: string | null; costSheetId: string | null; quantity: number }[],
+  items: { variantId: string | null; costSheetId: string | null; quantity: number; piecesPerKit?: number }[],
 ) {
   const variantIds = items.flatMap((i) => (i.variantId ? [i.variantId] : []));
   const { data: variants } = variantIds.length
-    ? await supabase.from("product_variants").select("id, cost_sheet_id").in("id", variantIds)
+    ? await supabase.from("product_variants").select("id, cost_sheet_id, pieces_per_kit").in("id", variantIds)
     : { data: [] };
   const variantSheet = new Map((variants ?? []).map((v) => [v.id, v.cost_sheet_id]));
+  const variantKit = new Map((variants ?? []).map((v) => [v.id, v.pieces_per_kit]));
   const [ctx, sheets] = await Promise.all([loadPricingContext(supabase), loadSheets(supabase)]);
   const sheetMap = new Map(sheets.map((s) => [s.id, s.sheet]));
 
@@ -78,14 +83,16 @@ async function itemsFromSheets(
     rows: items.map((i) => {
       const sheetId = i.variantId ? (variantSheet.get(i.variantId) ?? null) : i.costSheetId;
       const sheet = sheetId ? sheetMap.get(sheetId) : undefined;
+      const piecesPerKit = i.piecesPerKit ?? (i.variantId ? (variantKit.get(i.variantId) ?? 1) : 1);
       const evaluation = sheet ? evaluateSheet(sheet, ctx) : null;
-      // hora de trabalho do custo por peça, com o mesmo acréscimo da margem de falha (DRE "sem a sua hora")
-      const costs = evaluation?.ok ? sheetUnitCosts(evaluation.result, ctx.settings.failure_margin_pct) : null;
+      // hora de trabalho do custo da unidade, com o acréscimo da margem de falha na produção (DRE "sem a sua hora")
+      const costs = evaluation?.ok ? sheetUnitCosts(evaluation.result, piecesPerKit) : null;
       return {
         costSheetId: sheetId,
+        piecesPerKit,
         unitCost: costs?.unitCost ?? null,
         unitLaborCost: costs?.unitLaborCost ?? null,
-        printMinutes: itemPrintMinutes(sheet ?? null, i.quantity),
+        printMinutes: itemPrintMinutes(sheet ?? null, i.quantity, piecesPerKit),
       };
     }),
   };
@@ -110,7 +117,12 @@ export async function createOrderFromQuote(quoteId: string): Promise<ActionResul
   });
   const { rows } = await itemsFromSheets(
     supabase,
-    items.map((i) => ({ variantId: null, costSheetId: i.cost_sheet_id, quantity: i.quantity })),
+    items.map((i) => ({
+      variantId: null,
+      costSheetId: i.cost_sheet_id,
+      quantity: i.quantity,
+      piecesPerKit: i.pieces_per_kit,
+    })),
   );
   const { data, error } = await supabase.rpc("create_order", {
     p_order: {
@@ -140,6 +152,7 @@ export async function createOrderFromQuote(quoteId: string): Promise<ActionResul
           printMinutes: rows[idx].printMinutes ?? itemPrintMinutes(itemSheet(own, i.quantity), i.quantity),
           costSource: own ? i.cost_source : null,
           costInput: own ? i.cost_input : null,
+          piecesPerKit: i.pieces_per_kit,
         };
       }),
       payments: plannedPayments(totals.total, totals.deposit),
@@ -174,7 +187,9 @@ export async function createManualOrder(input: unknown): Promise<ActionResult<{ 
     itemCosts.push(fields);
   }
   // Venda direta: a taxa entra em cada pagamento; plataformas e outros canais, a taxa do pedido
-  const fees = channel.kind === "direct" ? 0 : profitAtPrice(total, 0, channelFees(channel), 0).channelFees;
+  // (a taxa fixa é por unidade vendida: 2 × "Kit 5" = 2 taxas fixas, como a plataforma cobra)
+  const units = o.items.reduce((s, i) => s + i.quantity, 0);
+  const fees = channel.kind === "direct" ? 0 : orderChannelFees(total, units, channelFees(channel));
 
   const { data, error } = await supabase.rpc("create_order", {
     p_order: {
@@ -202,6 +217,7 @@ export async function createManualOrder(input: unknown): Promise<ActionResult<{ 
           printMinutes: rows[idx].printMinutes ?? itemPrintMinutes(itemSheet(i.cost, i.quantity), i.quantity),
           costSource: own?.costSource ?? null,
           costInput: own?.costInput ?? null,
+          piecesPerKit: rows[idx].piecesPerKit,
         };
       }),
       payments: platform ? [] : plannedPayments(total, null),

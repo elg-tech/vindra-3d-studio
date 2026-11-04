@@ -53,7 +53,7 @@ export type BoardOrder = {
 };
 
 const ORDER_COLUMNS =
-  "id, number, status, board_position, status_changed_at, due_date, total_amount, paid_by_platform, consumed_at, filament_skipped, platform_order_number, customers(name), sales_channels(name), order_items(quantity, print_minutes, cost_sheet_id, cost_source, cost_input), order_payments(kind, amount, paid_on)";
+  "id, number, status, board_position, status_changed_at, due_date, total_amount, paid_by_platform, consumed_at, filament_skipped, platform_order_number, customers(name), sales_channels(name), order_items(quantity, print_minutes, cost_sheet_id, cost_source, cost_input, pieces_per_kit), order_payments(kind, amount, paid_on)";
 
 export function spoolOptions(ctx: PricingContext): SpoolOption[] {
   return ctx.spools.map((s) => ({
@@ -68,7 +68,13 @@ export function spoolOptions(ctx: PricingContext): SpoolOption[] {
 }
 
 function expectedFor(
-  items: { quantity: number; cost_sheet_id: string | null; cost_source: string | null; cost_input: unknown }[],
+  items: {
+    quantity: number;
+    cost_sheet_id: string | null;
+    cost_source: string | null;
+    cost_input: unknown;
+    pieces_per_kit: number;
+  }[],
   sheets: Map<string, SheetData>,
   ctx: PricingContext,
 ): ExpectedLine[] {
@@ -79,6 +85,8 @@ function expectedFor(
         (i.cost_sheet_id && sheets.get(i.cost_sheet_id)) ||
         itemSheet(storedItemCost(i.cost_source, i.cost_input), i.quantity),
       quantity: i.quantity,
+      // 1 × "Kit 5" = 5 peças
+      piecesPerKit: i.pieces_per_kit,
     })),
   );
   return lines.map((l) => ({ ...l, suggestedSpoolId: suggestSpool(l, ctx.spools)?.id ?? null }));

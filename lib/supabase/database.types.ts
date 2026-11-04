@@ -78,6 +78,7 @@ export type Database = {
           id: string
           name: string
           owner_id: string
+          per_order: boolean
           quantity: number
           supply_id: string | null
           unit_cost: number
@@ -89,6 +90,7 @@ export type Database = {
           id?: string
           name: string
           owner_id?: string
+          per_order?: boolean
           quantity?: number
           supply_id?: string | null
           unit_cost: number
@@ -100,6 +102,7 @@ export type Database = {
           id?: string
           name?: string
           owner_id?: string
+          per_order?: boolean
           quantity?: number
           supply_id?: string | null
           unit_cost?: number
@@ -127,9 +130,11 @@ export type Database = {
           calculated_at: string | null
           created_at: string
           id: string
+          kit_sizes: number[]
           name: string
           notes: string | null
           owner_id: string
+          pack_minutes: number
           packaging_cost: number
           pieces_per_plate: number
           post_minutes: number
@@ -146,9 +151,11 @@ export type Database = {
           calculated_at?: string | null
           created_at?: string
           id?: string
+          kit_sizes?: number[]
           name: string
           notes?: string | null
           owner_id?: string
+          pack_minutes?: number
           packaging_cost?: number
           pieces_per_plate?: number
           post_minutes?: number
@@ -165,9 +172,11 @@ export type Database = {
           calculated_at?: string | null
           created_at?: string
           id?: string
+          kit_sizes?: number[]
           name?: string
           notes?: string | null
           owner_id?: string
+          pack_minutes?: number
           packaging_cost?: number
           pieces_per_plate?: number
           post_minutes?: number
@@ -425,6 +434,7 @@ export type Database = {
           id: string
           order_id: string
           owner_id: string
+          pieces_per_kit: number
           print_minutes: number | null
           quantity: number
           unit_cost: number | null
@@ -442,6 +452,7 @@ export type Database = {
           id?: string
           order_id: string
           owner_id?: string
+          pieces_per_kit?: number
           print_minutes?: number | null
           quantity?: number
           unit_cost?: number | null
@@ -459,6 +470,7 @@ export type Database = {
           id?: string
           order_id?: string
           owner_id?: string
+          pieces_per_kit?: number
           print_minutes?: number | null
           quantity?: number
           unit_cost?: number | null
@@ -749,6 +761,7 @@ export type Database = {
           image_path: string | null
           name: string
           owner_id: string
+          pieces_per_kit: number
           product_id: string
           sku: string | null
           sort_order: number
@@ -762,6 +775,7 @@ export type Database = {
           image_path?: string | null
           name: string
           owner_id?: string
+          pieces_per_kit?: number
           product_id: string
           sku?: string | null
           sort_order?: number
@@ -775,6 +789,7 @@ export type Database = {
           image_path?: string | null
           name?: string
           owner_id?: string
+          pieces_per_kit?: number
           product_id?: string
           sku?: string | null
           sort_order?: number
@@ -852,6 +867,7 @@ export type Database = {
           id: string
           image_path: string | null
           owner_id: string
+          pieces_per_kit: number
           quantity: number
           quote_id: string
           sort_order: number
@@ -870,6 +886,7 @@ export type Database = {
           id?: string
           image_path?: string | null
           owner_id?: string
+          pieces_per_kit?: number
           quantity?: number
           quote_id: string
           sort_order?: number
@@ -888,6 +905,7 @@ export type Database = {
           id?: string
           image_path?: string | null
           owner_id?: string
+          pieces_per_kit?: number
           quantity?: number
           quote_id?: string
           sort_order?: number

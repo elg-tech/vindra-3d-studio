@@ -5,6 +5,7 @@ import { type ActionResult, dbError, parseInput } from "@/lib/actions";
 import { loadSheets } from "@/lib/catalog";
 import { evaluateSheet } from "@/lib/cost-sheet";
 import { itemCostFields } from "@/lib/item-cost";
+import { type CostResult, kitCost } from "@/lib/pricing";
 import { loadPricingContext } from "@/lib/pricing-context";
 import { defaultValidUntil } from "@/lib/quotes";
 import { createClient } from "@/lib/supabase/server";
@@ -26,18 +27,23 @@ function revalidateQuotes(id?: string) {
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
 
-/** Custo por peça de cada ficha, agora (fica guardado no item: é o custo da época do orçamento). */
-async function sheetCosts(supabase: Supabase, sheetIds: string[]): Promise<Map<string, number>> {
-  const costs = new Map<string, number>();
+/**
+ * Custo de cada ficha, agora (fica guardado no item: é o custo da época do orçamento).
+ * A conta do kit (n peças + custos do pedido) é feita por item, com kitCost.
+ */
+async function sheetCosts(supabase: Supabase, sheetIds: string[]): Promise<Map<string, CostResult>> {
+  const costs = new Map<string, CostResult>();
   if (sheetIds.length === 0) return costs;
   const [ctx, sheets] = await Promise.all([loadPricingContext(supabase), loadSheets(supabase)]);
   for (const s of sheets) {
     if (!sheetIds.includes(s.id)) continue;
     const evaluation = evaluateSheet(s.sheet, ctx);
-    if (evaluation.ok) costs.set(s.id, Math.round(evaluation.result.unit.total * 10_000) / 10_000);
+    if (evaluation.ok) costs.set(s.id, evaluation.result);
   }
   return costs;
 }
+
+const round4 = (n: number) => Math.round(n * 10_000) / 10_000;
 
 export async function saveQuote(input: unknown): Promise<ActionResult<{ id: string }>> {
   const parsed = parseInput(quoteSchema, input);
@@ -48,13 +54,18 @@ export async function saveQuote(input: unknown): Promise<ActionResult<{ id: stri
   // a ficha de um item do catálogo vem da variação no banco, não do navegador
   const variantIds = q.items.flatMap((i) => (i.variantId ? [i.variantId] : []));
   const { data: variants } = variantIds.length
-    ? await supabase.from("product_variants").select("id, cost_sheet_id").in("id", variantIds)
+    ? await supabase.from("product_variants").select("id, cost_sheet_id, pieces_per_kit").in("id", variantIds)
     : { data: [] };
-  const variantSheet = new Map((variants ?? []).map((v) => [v.id, v.cost_sheet_id]));
-  const items = q.items.map((i) => ({
-    ...i,
-    costSheetId: i.variantId ? (variantSheet.get(i.variantId) ?? null) : i.costSheetId,
-  }));
+  const variantRow = new Map((variants ?? []).map((v) => [v.id, v]));
+  const items = q.items.map((i) => {
+    const v = i.variantId ? variantRow.get(i.variantId) : undefined;
+    return {
+      ...i,
+      costSheetId: i.variantId ? (v?.cost_sheet_id ?? null) : i.costSheetId,
+      // "Kit 5" = 5 peças por unidade (filamento previsto e custo do kit)
+      piecesPerKit: v?.pieces_per_kit ?? 1,
+    };
+  });
   const costs = await sheetCosts(
     supabase,
     items.flatMap((i) => (i.costSheetId ? [i.costSheetId] : [])),
@@ -85,13 +96,19 @@ export async function saveQuote(input: unknown): Promise<ActionResult<{ id: stri
       notes: q.notes,
       items: items.map((i, idx) => {
         const own = itemCosts[idx];
+        const sheetResult = i.costSheetId ? costs.get(i.costSheetId) : undefined;
         return {
           variantId: i.variantId,
           costSheetId: i.costSheetId,
           description: i.description,
           quantity: i.quantity,
           unitPrice: i.unitPrice,
-          unitCost: i.costSheetId ? (costs.get(i.costSheetId) ?? null) : (own?.unitCost ?? null),
+          piecesPerKit: i.piecesPerKit,
+          unitCost: i.costSheetId
+            ? sheetResult
+              ? round4(kitCost(sheetResult, i.piecesPerKit))
+              : null
+            : (own?.unitCost ?? null),
           unitLaborCost: own?.unitLaborCost ?? null,
           costSource: own?.costSource ?? null,
           costInput: own?.costInput ?? null,

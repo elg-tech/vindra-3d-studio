@@ -17,7 +17,7 @@ import { parseDecimal } from "@/lib/numbers";
 import { cn } from "@/lib/utils";
 import { saveCostSheet } from "./actions";
 import { CostBreakdown } from "./cost-breakdown";
-import { SheetFields, type SupplyOption } from "./sheet-fields";
+import { OrderCostFields, SheetFields, type SupplyOption } from "./sheet-fields";
 
 const field = (n: number) => (n === 0 ? "" : String(n).replace(".", ","));
 
@@ -170,7 +170,10 @@ function ItemCostBody({
           <TabsTrigger value="manual">Custo manual</TabsTrigger>
         </TabsList>
         <TabsContent value="calc">
-          <SheetFields form={form} ctx={ctx} supplies={supplies} compact hideQuantity />
+          <div className="grid gap-4">
+            <SheetFields form={form} ctx={ctx} supplies={supplies} compact hideQuantity />
+            <OrderCostFields form={form} ctx={ctx} supplies={supplies} compact />
+          </div>
         </TabsContent>
         <TabsContent value="manual" className="grid gap-4 sm:grid-cols-2">
           <div className="grid content-start gap-1.5">

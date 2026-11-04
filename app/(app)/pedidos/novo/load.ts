@@ -1,6 +1,6 @@
 import "server-only";
 import { loadSheets } from "@/lib/catalog";
-import { channelFees, evaluateSheet } from "@/lib/cost-sheet";
+import { channelFees, sheetKitCost } from "@/lib/cost-sheet";
 import { suggestPrice } from "@/lib/pricing";
 import { loadPricingContext } from "@/lib/pricing-context";
 import type { createClient } from "@/lib/supabase/server";
@@ -13,7 +13,7 @@ export type OrderCatalogOption = {
   label: string;
   /** Preço padrão por canal: o cadastrado na variação; senão o sugerido para o canal. */
   prices: Record<string, number | null>;
-  /** Custo por peça hoje (privado). */
+  /** Custo de uma unidade hoje (o kit inteiro, numa variação de kit; privado). */
   cost: number | null;
 };
 
@@ -32,7 +32,7 @@ export async function loadManualOrderData(supabase: Supabase) {
     loadSheets(supabase),
     supabase
       .from("products")
-      .select("name, product_variants(id, name, active, sort_order, cost_sheet_id, variant_channel_prices(channel_id, price))")
+      .select("name, product_variants(id, name, active, sort_order, cost_sheet_id, pieces_per_kit, variant_channel_prices(channel_id, price))")
       .eq("active", true)
       .order("name"),
     supabase.from("customers").select("id, name").order("name"),
@@ -41,12 +41,8 @@ export async function loadManualOrderData(supabase: Supabase) {
   const { tax_pct, default_margin_pct, rounding_rule } = ctx.settings;
   const sheetById = new Map(sheets.map((s) => [s.id, s.sheet]));
 
-  const costOf = (sheetId: string | null) => {
-    const sheet = sheetId ? sheetById.get(sheetId) : undefined;
-    if (!sheet) return null;
-    const evaluation = evaluateSheet(sheet, ctx);
-    return evaluation.ok ? evaluation.result.unit.total : null;
-  };
+  const costOf = (sheetId: string | null, piecesPerKit = 1) =>
+    sheetKitCost(sheetId ? sheetById.get(sheetId) : undefined, ctx, piecesPerKit);
   const suggestedFor = (cost: number | null) =>
     Object.fromEntries(
       ctx.channels.map((c) => {
@@ -62,7 +58,7 @@ export async function loadManualOrderData(supabase: Supabase) {
         .filter((v) => v.active)
         .sort((a, b) => a.sort_order - b.sort_order)
         .map((v): OrderCatalogOption => {
-          const cost = costOf(v.cost_sheet_id);
+          const cost = costOf(v.cost_sheet_id, v.pieces_per_kit);
           const suggested = suggestedFor(cost);
           const stored = new Map(v.variant_channel_prices.map((x) => [x.channel_id, x.price]));
           return {

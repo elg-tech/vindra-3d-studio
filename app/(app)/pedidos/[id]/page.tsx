@@ -118,6 +118,7 @@ export default async function PedidoPage({ params }: { params: Promise<{ id: str
                           <span className="block font-medium break-words">{i.description}</span>
                           <span className="text-muted-foreground tabular-nums">
                             {i.quantity} × {formatCurrency(i.unit_price)}
+                            {i.pieces_per_kit > 1 && ` · kit de ${i.pieces_per_kit} peças`}
                             {i.print_minutes ? ` · ${formatMinutes(i.print_minutes)} de impressão` : ""}
                           </span>
                         </span>

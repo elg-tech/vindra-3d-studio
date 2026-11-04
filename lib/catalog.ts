@@ -9,7 +9,7 @@ export type CatalogSheet = { id: string; name: string; sheet: SheetData };
 
 // string única (sem concatenar): o supabase-js infere o tipo das linhas a partir dela
 const SHEET_COLUMNS =
-  "id, name, printer_id, print_minutes, prep_minutes, post_minutes, purge_g, packaging_cost, quantity, pieces_per_plate, cost_sheet_filaments(filament_id, material, color_hex, grams, sort_order, spool_removed), cost_sheet_supplies(supply_id, name, quantity, unit_cost)";
+  "id, name, printer_id, print_minutes, prep_minutes, post_minutes, purge_g, packaging_cost, quantity, pieces_per_plate, pack_minutes, kit_sizes, cost_sheet_filaments(filament_id, material, color_hex, grams, sort_order, spool_removed), cost_sheet_supplies(supply_id, name, quantity, unit_cost, per_order)";
 
 /** Todas as fichas do usuário, prontas para o cálculo (lib/product-pricing.ts). */
 export async function loadSheets(supabase: Supabase): Promise<CatalogSheet[]> {
