@@ -64,13 +64,16 @@ export type ConsumptionLine = {
 
 /**
  * Gramas que o pedido vai gastar: por item, gramas por mesa × mesas (peças ÷ peças por mesa).
+ * Peças = quantidade × peças por kit (1 × "Kit 5" = 5 peças).
  * A purga da mesa é dividida entre os filamentos na proporção dos gramas. Linhas iguais se somam.
  */
-export function expectedConsumption(items: { sheet: SheetData | null; quantity: number }[]): ConsumptionLine[] {
+export function expectedConsumption(
+  items: { sheet: SheetData | null; quantity: number; piecesPerKit?: number }[],
+): ConsumptionLine[] {
   const lines = new Map<string, ConsumptionLine>();
-  for (const { sheet, quantity } of items) {
+  for (const { sheet, quantity, piecesPerKit = 1 } of items) {
     if (!sheet || sheet.filaments.length === 0) continue;
-    const plates = quantity / sheet.piecesPerPlate;
+    const plates = (quantity * piecesPerKit) / sheet.piecesPerPlate;
     const plateGrams = sheet.filaments.reduce((s, f) => s + f.grams, 0);
     for (const f of sheet.filaments) {
       const purgeShare = plateGrams > 0 ? (sheet.purgeG * f.grams) / plateGrams : sheet.purgeG / sheet.filaments.length;
@@ -100,10 +103,10 @@ export function suggestSpool(line: ConsumptionLine, spools: ContextSpool[]): Con
   );
 }
 
-/** Tempo de impressão do item (min): tempo por mesa × mesas. */
-export function itemPrintMinutes(sheet: SheetData | null, quantity: number): number | null {
+/** Tempo de impressão do item (min): tempo por mesa × mesas (peças = quantidade × peças por kit). */
+export function itemPrintMinutes(sheet: SheetData | null, quantity: number, piecesPerKit = 1): number | null {
   if (!sheet || sheet.printMinutes <= 0) return null;
-  return Math.round((sheet.printMinutes * quantity) / sheet.piecesPerPlate);
+  return Math.round((sheet.printMinutes * quantity * piecesPerKit) / sheet.piecesPerPlate);
 }
 
 // ---------------------------------------------------------------

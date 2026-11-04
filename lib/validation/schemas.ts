@@ -222,6 +222,8 @@ export const productSchema = z
           sku: sku(),
           imagePath: optionalText(300),
           costSheetId: optionalUuid(),
+          /** Peças que vão em cada unidade vendida ("Kit 5" = 5). */
+          piecesPerKit: decimal({ int: true, min: 1, max: 1000 }),
           active: z.boolean(),
           prices: z.array(z.object({ channelId: z.uuid(), price: optionalDecimal({ min: 0, max: 100_000 }) })),
         }),
@@ -244,7 +246,22 @@ export const productSchema = z
 
 export type ProductInput = z.input<typeof productSchema>;
 
-/** "Salvar como produto" na calculadora: produto novo ou variação de um existente. */
+/** Uma variação por kit, com os preços manuais digitados na calculadora (vazio = sem preço). */
+const sheetKitsSchema = z
+  .array(
+    z.object({
+      name: requiredText(80),
+      piecesPerKit: z.number().int().min(1).max(1000),
+      prices: z.array(z.object({ channelId: z.uuid(), price: z.number().positive().max(100_000) })).max(20),
+    }),
+  )
+  .max(10)
+  .optional();
+
+/**
+ * "Salvar como produto" na calculadora: produto novo ou variação de um existente.
+ * Com kits, cria uma variação por kit (a mesma ficha, com peças por kit) no lugar da variação única.
+ */
 export const sheetToProductSchema = z.discriminatedUnion("mode", [
   z.object({
     mode: z.literal("new"),
@@ -252,6 +269,7 @@ export const sheetToProductSchema = z.discriminatedUnion("mode", [
     productName: requiredText(120),
     productSku: sku(),
     variantName: requiredText(80),
+    kits: sheetKitsSchema,
   }),
   z.object({
     mode: z.literal("existing"),
@@ -259,6 +277,7 @@ export const sheetToProductSchema = z.discriminatedUnion("mode", [
     productId: z.uuid("Escolha um produto."),
     variantName: requiredText(80),
     variantSku: sku(),
+    kits: sheetKitsSchema,
   }),
 ]);
 

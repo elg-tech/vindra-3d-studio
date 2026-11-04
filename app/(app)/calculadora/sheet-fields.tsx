@@ -15,6 +15,7 @@ import type { BambuPlate } from "@/lib/bambu3mf";
 import { type CalcFormValues, materialSource, spoolSource } from "@/lib/calculator-form";
 import { type PricingContext, matchSpool } from "@/lib/cost-sheet";
 import { MATERIALS } from "@/lib/filaments";
+import { parseDecimal } from "@/lib/numbers";
 import { formatCurrency, formatGrams, formatNumber, formatUnitCost } from "@/lib/format";
 import {
   type PlateImport,
@@ -76,7 +77,7 @@ function duration(seconds: number) {
   return h > 0 ? `${h}h ${total % 60}min` : `${total}min`;
 }
 
-/** Mesas do .3mf: marcar quais entram (2+ = 1 kit), com o total e o detalhamento por mesa. */
+/** Mesas do .3mf: marcar quais entram (2+ = 1 conjunto), com o total e o detalhamento por mesa. */
 function PlatesPanel({ value, onChange }: { value: PlateImport; onChange: (next: PlateImport) => void }) {
   const combined = combinePlates(value.plates, value.selected);
   const sliced = value.plates.filter((p) => p.sliced).map((p) => p.index);
@@ -92,7 +93,7 @@ function PlatesPanel({ value, onChange }: { value: PlateImport; onChange: (next:
         <div className="grid min-w-0 gap-0.5">
           <p className="text-sm font-medium break-words">Mesas de {value.fileName}</p>
           <p className="text-xs text-muted-foreground">
-            Marque as que entram: 2 ou mais viram 1 kit (soma tempo e gramas). Trocar as mesas refaz o tempo e as gramas.
+            Marque as que entram: 2 ou mais viram 1 conjunto (soma tempo e gramas). Trocar as mesas refaz o tempo e as gramas.
           </p>
         </div>
         <div className="flex gap-1">
@@ -124,7 +125,7 @@ function PlatesPanel({ value, onChange }: { value: PlateImport; onChange: (next:
       ) : (
         <p className="flex flex-wrap items-baseline justify-between gap-x-3 rounded-lg bg-muted/50 px-3 py-2 text-sm">
           <span className="font-medium">
-            Total{combined.plates.length > 1 && ` · ${combined.plates.length} mesas = 1 kit`}
+            Total{combined.plates.length > 1 && ` · ${combined.plates.length} mesas = 1 conjunto`}
           </span>
           <span className="tabular-nums">
             {duration(combined.printSeconds)} · {formatGrams(combined.grams)}
@@ -168,7 +169,8 @@ function PlatesPanel({ value, onChange }: { value: PlateImport; onChange: (next:
 }
 
 /**
- * Campos da ficha de custo: impressão, filamentos, mão de obra, embalagem e insumos, com a importação do .3mf.
+ * Campos de PRODUÇÃO da ficha: impressão, filamentos, mão de obra e insumos por peça, com a importação do .3mf.
+ * Os custos por pedido (embalagem, etiqueta, separar/embalar) ficam em OrderCostFields.
  * Usado pela calculadora e pela mini calculadora do item avulso (orçamento e pedido).
  */
 export function SheetFields({
@@ -190,18 +192,17 @@ export function SheetFields({
 }) {
   const { control, register, setValue, getValues } = form;
   const filaments = useFieldArray({ control, name: "filaments" });
-  const extras = useFieldArray({ control, name: "extras" });
   const plateImport = useWatch({ control, name: "plateImport" });
   const rows = useWatch({ control, name: "filaments" });
+  const piecesPerPlate = useWatch({ control, name: "piecesPerPlate" });
 
   // carretel que acabou só aparece na linha que já o usa (ficha antiga), para o campo não ficar em branco
   const visibleSpools = (value: string) =>
     ctx.spools.filter((s) => s.status !== "empty" || value === spoolSource(s.id));
-  const packaging = supplies.filter((s) => s.is_packaging);
   const others = supplies.filter((s) => !s.is_packaging);
 
   /**
-   * Aplica as mesas marcadas: soma tempo e gramas por filamento do arquivo. Com 2+ mesas o conjunto é 1 kit
+   * Aplica as mesas marcadas: soma tempo e gramas por filamento do arquivo. Com 2+ mesas viram 1 conjunto
    * (peças por mesa = 1, editável). Os carretéis já escolhidos para o mesmo filamento do arquivo ficam.
    */
   function applyPlates(next: PlateImport) {
@@ -229,7 +230,7 @@ export function SheetFields({
     toast.success(
       sliced.length === 1
         ? `Mesa ${first.index} importada: ${combined.filaments.length} filamento(s), ${duration(combined.printSeconds)}.`
-        : `${sliced.length} mesas importadas como 1 kit: ${combined.filaments.length} filamento(s), ${duration(combined.printSeconds)}.`,
+        : `${sliced.length} mesas importadas como 1 conjunto: ${combined.filaments.length} filamento(s), ${duration(combined.printSeconds)}.`,
       {
         description:
           (unmatched > 0 ? `${unmatched} sem carretel da mesma cor no estoque: usando a média do material. ` : "") +
@@ -287,18 +288,25 @@ export function SheetFields({
             </div>
           </div>
         </fieldset>
-        <div className={cn("grid gap-2", !hideQuantity && "grid-cols-2")}>
+        <TextField
+          label="Peças por mesa"
+          registration={register("piecesPerPlate")}
+          numeric
+          inputMode="numeric"
+          hint="Quantas imprimo juntas na bandeja. Tempo e filamento se dividem."
+        />
+        {!hideQuantity && (
           <TextField
-            label="Peças por mesa"
-            registration={register("piecesPerPlate")}
+            label="Quero produzir (opcional)"
+            registration={register("quantity")}
             numeric
             inputMode="numeric"
-            hint="Tempo e filamento se dividem."
+            suffix="peças"
+            placeholder={piecesPerPlate?.trim() || "1"}
+            className="sm:col-span-2 sm:max-w-xs"
+            hint="Mostra mesas, tempo e filamento do lote. O preparo se divide por essas peças (vazio = uma mesa)."
           />
-          {!hideQuantity && (
-            <TextField label="Quantidade" registration={register("quantity")} numeric inputMode="numeric" hint="Peças no lote." />
-          )}
-        </div>
+        )}
       </Section>
 
       <Section
@@ -463,76 +471,169 @@ export function SheetFields({
         />
       </Section>
 
-      <Section compact={compact} title="Embalagem e insumos" description="Valores por peça." className="grid gap-4">
-        <div className="flex flex-wrap items-end gap-2">
-          <TextField label="Embalagem" registration={register("packagingCost")} numeric prefix="R$" className="w-40" />
-          {packaging.length > 0 && (
-            <Select
-              value=""
-              onValueChange={(id) => {
-                const s = packaging.find((p) => p.id === id);
-                if (s) setValue("packagingCost", formatNumber(s.unit_cost));
-              }}
-            >
-              <SelectTrigger aria-label="Usar embalagem cadastrada" className="w-auto">
-                <SelectValue placeholder="Usar cadastrada…" />
-              </SelectTrigger>
-              <SelectContent>
-                {packaging.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.name} · {formatCurrency(p.unit_cost)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        </div>
 
-        {extras.fields.map((row, i) => (
-          <div key={row.id} className="grid grid-cols-[minmax(0,1fr)_4.5rem_6.5rem_auto] items-end gap-2">
-            <div className="grid gap-1.5">
-              <Label htmlFor={`extra-name-${i}`}>Insumo</Label>
-              <Input id={`extra-name-${i}`} {...register(`extras.${i}.name`)} />
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor={`extra-qty-${i}`}>Qtd.</Label>
-              <Input id={`extra-qty-${i}`} inputMode="decimal" className="tabular-nums" {...register(`extras.${i}.quantity`)} />
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor={`extra-cost-${i}`}>Custo un.</Label>
-              <Input id={`extra-cost-${i}`} inputMode="decimal" className="tabular-nums" {...register(`extras.${i}.unitCost`)} />
-            </div>
-            <Button type="button" variant="ghost" size="icon" aria-label={`Remover insumo ${i + 1}`} onClick={() => extras.remove(i)}>
-              <Trash2 aria-hidden />
-            </Button>
-          </div>
-        ))}
-
-        <Select
-          value=""
-          onValueChange={(id) => {
-            const s = others.find((o) => o.id === id);
-            extras.append(
-              s
-                ? { supplyId: s.id, name: s.name, quantity: "1", unitCost: formatNumber(s.unit_cost) }
-                : { supplyId: "", name: "", quantity: "1", unitCost: "" },
-            );
-          }}
-        >
-          <SelectTrigger aria-label="Adicionar insumo" className="w-fit" disabled={extras.fields.length >= 30}>
-            <Plus aria-hidden />
-            <SelectValue placeholder="Adicionar insumo" />
-          </SelectTrigger>
-          <SelectContent>
-            {others.map((o) => (
-              <SelectItem key={o.id} value={o.id}>
-                {o.name} · {formatUnitCost(o.unit_cost)}/{o.unit}
-              </SelectItem>
-            ))}
-            <SelectItem value="custom">Personalizado…</SelectItem>
-          </SelectContent>
-        </Select>
+      <Section
+        compact={compact}
+        title="Insumos por peça"
+        description="Vão em cada peça (ímã, parafuso, argola). Embalagem e etiqueta ficam nos custos por pedido."
+        className="grid gap-4"
+      >
+        <ExtrasList form={form} name="extras" options={others} addLabel="Adicionar insumo" />
       </Section>
     </div>
+  );
+}
+
+/** Insumos (por peça ou por pedido): nome, quantidade e custo unitário, com os cadastrados para escolher. */
+function ExtrasList({
+  form,
+  name,
+  options,
+  addLabel,
+}: {
+  form: UseFormReturn<CalcFormValues>;
+  name: "extras" | "orderExtras";
+  options: SupplyOption[];
+  addLabel: string;
+}) {
+  const { control, register } = form;
+  const list = useFieldArray({ control, name });
+  const prefix = name === "extras" ? "extra" : "order-extra";
+  return (
+    <>
+      {list.fields.map((row, i) => (
+        <div key={row.id} className="grid grid-cols-[minmax(0,1fr)_4.5rem_6.5rem_auto] items-end gap-2">
+          <div className="grid gap-1.5">
+            <Label htmlFor={`${prefix}-name-${i}`}>Insumo</Label>
+            <Input id={`${prefix}-name-${i}`} {...register(`${name}.${i}.name`)} />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor={`${prefix}-qty-${i}`}>Qtd.</Label>
+            <Input id={`${prefix}-qty-${i}`} inputMode="decimal" className="tabular-nums" {...register(`${name}.${i}.quantity`)} />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor={`${prefix}-cost-${i}`}>Custo un.</Label>
+            <Input id={`${prefix}-cost-${i}`} inputMode="decimal" className="tabular-nums" {...register(`${name}.${i}.unitCost`)} />
+          </div>
+          <Button type="button" variant="ghost" size="icon" aria-label={`Remover insumo ${i + 1}`} onClick={() => list.remove(i)}>
+            <Trash2 aria-hidden />
+          </Button>
+        </div>
+      ))}
+
+      <Select
+        value=""
+        onValueChange={(id) => {
+          const s = options.find((o) => o.id === id);
+          list.append(
+            s
+              ? { supplyId: s.id, name: s.name, quantity: "1", unitCost: formatNumber(s.unit_cost) }
+              : { supplyId: "", name: "", quantity: "1", unitCost: "" },
+          );
+        }}
+      >
+        <SelectTrigger aria-label={addLabel} className="w-fit" disabled={list.fields.length >= 30}>
+          <Plus aria-hidden />
+          <SelectValue placeholder={addLabel} />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((o) => (
+            <SelectItem key={o.id} value={o.id}>
+              {o.name} · {formatUnitCost(o.unit_cost)}/{o.unit}
+            </SelectItem>
+          ))}
+          <SelectItem value="custom">Personalizado…</SelectItem>
+        </SelectContent>
+      </Select>
+    </>
+  );
+}
+
+/** Soma da embalagem e dos insumos por pedido digitados (para o aviso de R$ 0,00). */
+export function orderSuppliesTotal(values: Pick<CalcFormValues, "packagingCost" | "orderExtras">): number {
+  const n = (v: string | undefined, fallback = 0) => (v?.trim() ? (parseDecimal(v) ?? 0) : fallback);
+  return (
+    n(values.packagingCost) + (values.orderExtras ?? []).reduce((s, e) => s + n(e.quantity, 1) * n(e.unitCost), 0)
+  );
+}
+
+/**
+ * Custos de VENDA, uma vez por pedido (kit): embalagem, insumos do pedido (etiqueta) e o tempo de separar,
+ * embalar e enviar. Sem margem de falha. No item avulso, uma vez por unidade do item.
+ */
+export function OrderCostFields({
+  form,
+  ctx,
+  supplies,
+  compact,
+}: {
+  form: UseFormReturn<CalcFormValues>;
+  ctx: PricingContext;
+  supplies: SupplyOption[];
+  compact?: boolean;
+}) {
+  const { control, register, setValue } = form;
+  const packaging = supplies.filter((s) => s.is_packaging);
+  const packagingCost = useWatch({ control, name: "packagingCost" });
+  const orderExtras = useWatch({ control, name: "orderExtras" });
+  const empty = orderSuppliesTotal({ packagingCost, orderExtras }) === 0;
+
+  return (
+    <Section
+      compact={compact}
+      title={compact ? "Embalagem e envio (por unidade)" : "Custos por pedido"}
+      description={
+        compact
+          ? "Uma vez por unidade do item: embalagem, etiqueta e o tempo de embalar."
+          : "Uma vez por kit vendido, não por peça: embalagem, etiqueta e o tempo de separar, embalar e enviar."
+      }
+      className="grid gap-4"
+    >
+      {empty && (
+        <p role="note" className="flex gap-2 rounded-lg border border-warning/40 bg-warning/10 p-3 text-xs">
+          <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-warning" aria-hidden />
+          Embalagem e insumos do pedido em R$ 0,00. Se o pacote leva caixa, saco ou etiqueta, preencha aqui.
+        </p>
+      )}
+      <div className="flex flex-wrap items-end gap-2">
+        <TextField label="Embalagem" registration={register("packagingCost")} numeric prefix="R$" className="w-40" />
+        {packaging.length > 0 && (
+          <Select
+            value=""
+            onValueChange={(id) => {
+              const s = packaging.find((p) => p.id === id);
+              if (s) setValue("packagingCost", formatNumber(s.unit_cost), { shouldDirty: true });
+            }}
+          >
+            <SelectTrigger aria-label="Usar embalagem cadastrada" className="w-auto">
+              <SelectValue placeholder="Usar cadastrada…" />
+            </SelectTrigger>
+            <SelectContent>
+              {packaging.map((p) => (
+                <SelectItem key={p.id} value={p.id}>
+                  {p.name} · {formatCurrency(p.unit_cost)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </div>
+
+      <ExtrasList form={form} name="orderExtras" options={supplies} addLabel="Adicionar etiqueta ou insumo" />
+
+      <TextField
+        label="Separar, embalar e enviar"
+        registration={register("packMinutes")}
+        numeric
+        inputMode="numeric"
+        suffix="min"
+        className="w-56"
+        hint={
+          ctx.settings.labor_hour_rate === null
+            ? "Configure o valor da sua hora em Configurações → Custos."
+            : "Separado do pós-processamento (que é por peça)."
+        }
+      />
+    </Section>
   );
 }

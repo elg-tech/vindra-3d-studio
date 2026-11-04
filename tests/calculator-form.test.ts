@@ -59,6 +59,51 @@ describe("formToSheet", () => {
     expect(sheet.quantity).toBe(1);
     expect(sheet.piecesPerPlate).toBe(1);
     expect(sheet.printMinutes).toBe(0);
+    expect(sheet.kitSizes).toEqual([1]);
+    expect(sheet.packMinutes).toBe(0);
+  });
+
+  it("\"Quero produzir\" vazio = uma mesa; preenchido = o lote", () => {
+    expect(formToSheet({ ...EMPTY_FORM, piecesPerPlate: "5" }, spools).sheet.quantity).toBe(5);
+    expect(formToSheet({ ...EMPTY_FORM, piecesPerPlate: "5", quantity: "12" }, spools).sheet.quantity).toBe(12);
+  });
+
+  it("kits sem repetição e em ordem; insumos por pedido marcados", () => {
+    const { sheet, errors } = formToSheet(
+      {
+        ...EMPTY_FORM,
+        packMinutes: "4",
+        kits: [{ size: "5" }, { size: "1" }, { size: "3" }, { size: "5" }, { size: "" }],
+        extras: [{ supplyId: "", name: "Ímã", quantity: "2", unitCost: "0,10" }],
+        orderExtras: [{ supplyId: "", name: "Etiqueta", quantity: "1", unitCost: "0,30" }],
+      },
+      spools,
+    );
+    expect(errors).toEqual([]);
+    expect(sheet.kitSizes).toEqual([1, 3, 5]);
+    expect(sheet.packMinutes).toBe(4);
+    expect(sheet.extras).toEqual([
+      { supplyId: null, name: "Ímã", quantity: 2, unitCost: 0.1, perOrder: false },
+      { supplyId: null, name: "Etiqueta", quantity: 1, unitCost: 0.3, perOrder: true },
+    ]);
+    expect(formToSheet({ ...EMPTY_FORM, kits: [{ size: "2,5" }] }, spools).errors).toHaveLength(1);
+  });
+
+  it("ida e volta: lote de uma mesa reabre vazio; insumos voltam ao bloco certo", () => {
+    const { sheet } = formToSheet(
+      {
+        ...EMPTY_FORM,
+        piecesPerPlate: "5",
+        kits: [{ size: "1" }, { size: "3" }],
+        orderExtras: [{ supplyId: "", name: "Etiqueta", quantity: "1", unitCost: "0,30" }],
+      },
+      spools,
+    );
+    const back = sheetToForm({ ...sheet, id: "x", name: "Tubarão", notes: null, sourceFilePath: null });
+    expect(back.quantity).toBe("");
+    expect(back.kits).toEqual([{ size: "1" }, { size: "3" }]);
+    expect(back.extras).toEqual([]);
+    expect(back.orderExtras).toEqual([{ supplyId: "", name: "Etiqueta", quantity: "1", unitCost: "0,3" }]);
   });
 
   it("aponta texto inválido e carretel inexistente", () => {

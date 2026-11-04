@@ -1,6 +1,6 @@
 import type { z } from "zod";
 import { type PricingContext, type SheetData, evaluateSheet } from "@/lib/cost-sheet";
-import type { CostResult } from "@/lib/pricing";
+import { type CostResult, kitCost, kitLaborCost } from "@/lib/pricing";
 import type { Json } from "@/lib/supabase/database.types";
 import { itemCostSchema } from "@/lib/validation/sheet";
 
@@ -25,11 +25,14 @@ export type ItemCostEvaluation =
 
 const round4 = (n: number) => Math.round(n * 10_000) / 10_000;
 
-/** Custo por peça e a mão de obra contida nele, com o mesmo acréscimo da margem de falha do custo. */
-export function sheetUnitCosts(result: CostResult, failureMarginPct: number): ItemCostValue {
+/**
+ * Custo de uma unidade vendida (kit de n peças; 1 = uma peça com os custos do pedido) e a mão de obra
+ * contida nele (a da produção com o acréscimo da margem de falha, mais o tempo de embalar).
+ */
+export function sheetUnitCosts(result: CostResult, piecesPerKit = 1): ItemCostValue {
   return {
-    unitCost: round4(result.unit.total),
-    unitLaborCost: round4(result.unit.labor * (1 + failureMarginPct / 100)),
+    unitCost: round4(kitCost(result, piecesPerKit)),
+    unitLaborCost: round4(kitLaborCost(result, piecesPerKit)),
   };
 }
 
@@ -52,7 +55,7 @@ export function evaluateItemCost(cost: ItemCost, quantity: number, ctx: PricingC
     ok: true,
     result: evaluation.result,
     warnings: [...new Set([...evaluation.warnings, ...evaluation.result.warnings])],
-    ...sheetUnitCosts(evaluation.result, ctx.settings.failure_margin_pct),
+    ...sheetUnitCosts(evaluation.result),
   };
 }
 

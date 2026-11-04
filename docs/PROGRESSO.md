@@ -370,7 +370,46 @@ Sem migração (decisão do Enzo: opção "a").
 - **Testes:** `tests/plate-import.test.ts` com a fixture `tests/fixtures/tres-mesas.gcode.3mf` (3 mesas fatiadas + 1 não
   fatiada, gerada por `tests/fixtures/tres-mesas/gerar.mjs`); Playwright 1280 e 390 (42/42, fora do repo).
 
+### Calculadora: produção x venda e kits (branch `calc-producao-venda`, em andamento)
+Problema: a calculadora misturava produção e venda ("Peças por mesa" x "Quantidade"), o resultado era sempre por peça e,
+ao montar kit, a taxa fixa do canal e a embalagem eram contadas por peça. Plano e fórmula aprovados pelo Enzo em 03/11/2026.
+- **Migração `20261104120000_kits_producao_venda` (aditiva):** `cost_sheets.pack_minutes` (separar/embalar/enviar, por
+  pedido) e `kit_sizes` (kits da calculadora, padrão `{1}`); `cost_sheet_supplies.per_order` (etiqueta x ímã);
+  `product_variants.pieces_per_kit` e a cópia em `quote_items`/`order_items` (padrão 1). `save_cost_sheet`,
+  `save_product`, `save_quote` e `create_order` refeitas com `create or replace` (chamada antiga continua valendo).
+  Colunas que mudam de nome na tela, sem mudar o dado: `quantity` = "Quero produzir X peças" (divide o preparo; vazio =
+  uma mesa) e `packaging_cost` = embalagem **por pedido**.
+- **Produção** (`calculateCost`, `lib/pricing.ts`): custo por peça = mesa cheia ÷ peças por mesa + preparo ÷ peças
+  produzidas + pós + insumos por peça, com a margem de falha. **Falha só na produção** (decisão do Enzo): embalagem,
+  insumos do pedido e o tempo de embalar ficam fora. `unit` = kit de 1 (peça + custos do pedido): é o custo de sempre
+  das fichas e produtos; sem falha, igual à fórmula antiga (teste dedicado). Com falha, fichas com embalagem ficam
+  embalagem × falha% mais baratas.
+- **"Quero produzir X peças"** (`productionPlan`, só informativo): mesas = ⌈X ÷ P⌉; a última incompleta conta inteira de
+  tempo e máquina, mas só com as gramas das peças (mais a purga da mesa). A venda usa sempre o custo da mesa cheia
+  (decisão do Enzo).
+- **Venda:** `custo_kit = custo_peça × n + custos_por_pedido`; `preço_kit = (custo_kit + taxa_fixa) ÷ (1 − comissão −
+  adicional − imposto − margem)`, arredondado pela regra das Configurações (`suggestKitPrice`). Taxa fixa **uma vez por
+  kit**. Venda direta continua no Pix, com "no crédito" ao lado.
+- **Pedido de plataforma:** taxa fixa × unidades vendidas (2 × "Kit 5" = 2 taxas fixas, como a plataforma cobra;
+  decisão do Enzo), em `orderChannelFees`. Antes era uma por pedido.
+- **Catálogo:** variação com "Peças por kit" (mesma ficha); custo, sugerido e margem da variação são do kit. Orçamento e
+  pedido gravam o custo do kit e `pieces_per_kit` (lidos da variação no servidor); a baixa prevista e o tempo de fila
+  usam quantidade × peças por kit. Item avulso continua por unidade do item (embalagem por unidade, como antes).
+- **Tela:** bloco "1. Produção" (campos + resultado fixo: custo por peça, custo da mesa, tempo e gramas por peça,
+  composição e o lote "produzir X") e bloco "2. Venda" (custos por pedido com aviso de R$ 0,00, lista editável de kits,
+  margem, cards kit × canal com preço manual e a tabela comparativa; no celular, abas por canal). O "Modo inverso" virou
+  o preço manual por kit e canal. "Salvar como produto" cria uma variação por kit, com os preços manuais digitados.
+  Na importação de várias mesas, "1 kit" virou "1 conjunto" (kit agora é o pacote do cliente).
+- **Impressora padrão:** já era configurável (Configurações → Impressoras, "Impressora padrão da calculadora").
+- **Testes:** unitários da fórmula do kit (taxa fixa e embalagem 1× por kit), do lote, da baixa de 1 × Kit 5 e do
+  formulário; banco em `tests/db/kits.db.test.ts` (roda depois do `db:push`; o segundo usuário prova que não altera).
+
 ## Pendências
+
+- [ ] **Calculadora produção x venda:** Enzo roda o dry-run e o `npm run db:push` da migração
+  `20261104120000_kits_producao_venda`; depois `npm run db:types`, `npm run test:db` e o Playwright 1280/390 (a pasta
+  `C:\Vindra\vindra-3d-studio` não tem `.env.local` nem o link do Supabase). Conferir o tubarão no preview com a
+  configuração real (kit 1, 3 e 5 na Shopee e no TikTok; preços manuais R$ 21,90 / 34,90 / 44,90).
 
 - [x] **Importação de várias mesas:** Enzo conferiu no preview com um .3mf real de 3 mesas (03/11/2026): tempo e gramas
   de cada mesa batem com o Bambu Studio; soma, seleção parcial, troca de cor e "Editar custo" reabrindo as mesas ok.

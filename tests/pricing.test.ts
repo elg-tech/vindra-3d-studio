@@ -7,7 +7,13 @@ import {
   depreciationPerHour,
   energyCostPerHour,
   isChannelConfigured,
+  kitCost,
+  kitLaborCost,
+  orderChannelFees,
+  perPieceDiscountPct,
+  productionPlan,
   profitAtPrice,
+  suggestKitPrice,
   roundPrice,
   suggestPrice,
   weightedCostPerGram,
@@ -54,27 +60,38 @@ describe("blocos básicos", () => {
 });
 
 describe("calculateCost", () => {
-  it("peça simples (fórmula do prompt, conferida à mão)", () => {
+  it("peça simples (conferida à mão): falha só na produção, embalagem por pedido", () => {
     const r = calculateCost(
       input({
         filaments: [{ grams: 50, costPerGram: 0.1 }], // R$ 5,00
         printMinutes: 120, // 2 h → energia 0,16 · depreciação 1,00 · manutenção 0,20
         prepMinutes: 10,
         postMinutes: 5, // 15 min × R$ 30/h = 7,50
-        packagingCost: 1.5,
-        extras: [{ quantity: 1, unitCost: 0.2 }], // insumos 1,70
+        packagingCost: 1.5, // por pedido, sem falha
+        extras: [{ quantity: 1, unitCost: 0.2 }], // insumo por peça
         failureMarginPct: 10,
       }),
     );
-    expect(r.unit.filament).toBeCloseTo(5, 10);
-    expect(r.unit.energy).toBeCloseTo(0.16, 10);
-    expect(r.unit.depreciation).toBeCloseTo(1, 10);
-    expect(r.unit.maintenance).toBeCloseTo(0.2, 10);
-    expect(r.unit.labor).toBeCloseTo(7.5, 10);
+    // produção: 5 + 0,16 + 1 + 0,2 + 7,5 + 0,2 = 14,06; falha 1,406
+    expect(r.piece.filament).toBeCloseTo(5, 10);
+    expect(r.piece.energy).toBeCloseTo(0.16, 10);
+    expect(r.piece.depreciation).toBeCloseTo(1, 10);
+    expect(r.piece.maintenance).toBeCloseTo(0.2, 10);
+    expect(r.piece.labor).toBeCloseTo(7.5, 10);
+    expect(r.piece.supplies).toBeCloseTo(0.2, 10);
+    expect(r.piece.subtotal).toBeCloseTo(14.06, 10);
+    expect(r.piece.failure).toBeCloseTo(1.406, 10);
+    expect(r.piece.total).toBeCloseTo(15.466, 10);
+    // pedido: só a embalagem
+    expect(r.order).toEqual({ packaging: 1.5, supplies: 0, labor: 0, total: 1.5 });
+    // kit de 1 (o custo de sempre da ficha): peça + pedido
     expect(r.unit.supplies).toBeCloseTo(1.7, 10);
-    expect(r.unit.subtotal).toBeCloseTo(15.56, 10);
-    expect(r.unit.failure).toBeCloseTo(1.556, 10);
-    expect(r.unit.total).toBeCloseTo(17.116, 10);
+    expect(r.unit.failure).toBeCloseTo(1.406, 10);
+    expect(r.unit.total).toBeCloseTo(16.966, 10);
+    expect(r.plate.filament).toBeCloseTo(5, 10);
+    expect(r.plate.machine).toBeCloseTo(1.36, 10);
+    expect(r.plate.total).toBeCloseTo(6.36, 10);
+    expect(r.plate.minutes).toBe(120);
     expect(r.printHours).toBeCloseTo(2, 10);
     expect(r.grams).toBeCloseTo(50, 10);
     expect(r.warnings).toEqual([]);
@@ -97,40 +114,86 @@ describe("calculateCost", () => {
     expect(r.grams).toBeCloseTo(48, 10);
   });
 
-  it("várias peças por mesa dividem tempo, energia e filamento", () => {
+  it("várias peças por mesa dividem tempo, energia e filamento; o preparo divide pelas peças produzidas", () => {
     const r = calculateCost(
       input({
         filaments: [{ grams: 80, costPerGram: 0.1 }], // 8,00 por mesa
         printMinutes: 240, // 4 h × 0,68 = 2,72 por mesa
         piecesPerPlate: 4,
         quantity: 4,
-        prepMinutes: 20, // uma vez
-        postMinutes: 2, // por peça → (20 + 8) min × 30/60 = 14,00
-        packagingCost: 1, // 4,00
+        prepMinutes: 20, // 10,00 no lote ÷ 4 = 2,50
+        postMinutes: 2, // 1,00 por peça
+        packagingCost: 1, // por pedido
         failureMarginPct: 10,
       }),
     );
-    expect(r.lot.subtotal).toBeCloseTo(28.72, 10);
-    expect(r.lot.total).toBeCloseTo(31.592, 10);
-    expect(r.unit.total).toBeCloseTo(7.898, 10);
+    // peça: 2,00 + 0,68 + 2,50 + 1,00 = 6,18; falha 0,618
+    expect(r.piece.subtotal).toBeCloseTo(6.18, 10);
+    expect(r.piece.total).toBeCloseTo(6.798, 10);
+    expect(r.unit.total).toBeCloseTo(7.798, 10);
+    expect(r.pieceMinutes).toBeCloseTo(60, 10);
+    expect(r.pieceGrams).toBeCloseTo(20, 10);
+    expect(r.plate.total).toBeCloseTo(10.72, 10);
     expect(r.printHours).toBeCloseTo(4, 10);
   });
 
-  it("quantidade que não fecha mesa conta a última proporcionalmente", () => {
+  it("custo por peça é o da mesa cheia, mesmo com lote que não fecha mesa", () => {
     const r = calculateCost(
       input({
         filaments: [{ grams: 80, costPerGram: 0.1 }],
         printMinutes: 240,
         piecesPerPlate: 4,
-        quantity: 5, // 1,25 mesa
+        quantity: 5,
         prepMinutes: 20,
         postMinutes: 2,
-        packagingCost: 1,
       }),
     );
-    // filamento 10,00 + máquina 3,40 + mão de obra 15,00 + embalagem 5,00
-    expect(r.lot.subtotal).toBeCloseTo(33.4, 10);
-    expect(r.printHours).toBeCloseTo(5, 10);
+    // 2,00 + 0,68 + 10/5 + 1,00 = 5,68
+    expect(r.piece.total).toBeCloseTo(5.68, 10);
+  });
+
+  it("kit de 1 dá o mesmo custo da fórmula antiga quando não há falha (fichas existentes não mudam)", () => {
+    const r = calculateCost(
+      input({
+        filaments: [
+          { grams: 26.71, costPerGram: 0.12 },
+          { grams: 3.27, costPerGram: 0.13 },
+        ],
+        printMinutes: 116,
+        piecesPerPlate: 5,
+        quantity: 7,
+        prepMinutes: 10,
+        postMinutes: 3,
+        packagingCost: 1.2,
+        extras: [{ quantity: 2, unitCost: 0.1 }],
+      }),
+    );
+    // fórmula antiga: lote inteiro ÷ quantidade (mesas proporcionais; embalagem e insumos por peça)
+    const q = 7;
+    const plates = q / 5;
+    const old =
+      ((26.71 * 0.12 + 3.27 * 0.13) * plates + (116 / 60) * 0.68 * plates + ((10 + 3 * q) / 60) * 30 + q * (1.2 + 0.2)) / q;
+    expect(r.unit.total).toBeCloseTo(old, 10);
+  });
+
+  it("insumo por pedido e tempo de embalar entram uma vez por kit, sem falha", () => {
+    const r = calculateCost(
+      input({
+        printMinutes: 60,
+        packagingCost: 1,
+        packMinutes: 6, // 6 min × 30/60 = 3,00
+        extras: [
+          { quantity: 1, unitCost: 0.5, perOrder: true }, // etiqueta
+          { quantity: 2, unitCost: 0.1 }, // por peça
+        ],
+        failureMarginPct: 10,
+      }),
+    );
+    expect(r.order).toEqual({ packaging: 1, supplies: 0.5, labor: 3, total: 4.5 });
+    expect(r.piece.supplies).toBeCloseTo(0.2, 10);
+    expect(kitCost(r, 5)).toBeCloseTo(r.piece.total * 5 + 4.5, 10);
+    // mão de obra do kit: a da produção com falha × n (aqui zero) + embalar
+    expect(kitLaborCost(r, 5)).toBeCloseTo(3, 10);
   });
 
   it("itens não configurados entram como zero e geram aviso", () => {
@@ -231,5 +294,92 @@ describe("preço por canal", () => {
   it("canal configurado = alguma taxa preenchida", () => {
     expect(isChannelConfigured({ commissionPct: null, extraPct: null, fixedFee: null })).toBe(false);
     expect(isChannelConfigured({ commissionPct: 0, extraPct: null, fixedFee: null })).toBe(true);
+  });
+});
+
+describe("produzir X peças", () => {
+  const r = calculateCost(
+    input({
+      filaments: [{ grams: 80, costPerGram: 0.1 }], // 20 g e R$ 2,00 por peça
+      purgeG: 4, // por mesa, a R$ 0,10/g
+      printMinutes: 240, // 4 h × 0,68 = 2,72 por mesa
+      piecesPerPlate: 4,
+      quantity: 5,
+      prepMinutes: 20, // 10,00 uma vez
+      postMinutes: 2, // 1,00 por peça
+    }),
+  );
+
+  it("última mesa incompleta conta inteira de tempo e máquina, mas só com as gramas das peças", () => {
+    const plan = productionPlan(r, 5);
+    expect(plan.plates).toBe(2);
+    expect(plan.lastPlatePieces).toBe(1);
+    expect(plan.minutes).toBe(480);
+    // 5 × 20 g + 2 mesas × 4 g de purga
+    expect(plan.grams).toBeCloseTo(108, 10);
+    // 2 × (2,72 + 0,40) + 5 × (2,00 + 1,00) + 10,00
+    expect(plan.cost).toBeCloseTo(31.24, 10);
+    expect(plan.costPerPiece).toBeCloseTo(6.248, 10);
+  });
+
+  it("lote que fecha mesas certinho", () => {
+    const plan = productionPlan(r, 8);
+    expect(plan.plates).toBe(2);
+    expect(plan.lastPlatePieces).toBe(4);
+    expect(plan.grams).toBeCloseTo(168, 10);
+  });
+
+  it("aplica a margem de falha e recusa número inválido", () => {
+    const withFailure = calculateCost(input({ printMinutes: 60, failureMarginPct: 10 }));
+    expect(productionPlan(withFailure, 1).cost).toBeCloseTo(0.748, 10);
+    expect(() => productionPlan(r, 0)).toThrow(PricingInputError);
+    expect(() => productionPlan(r, 1.5)).toThrow(PricingInputError);
+  });
+});
+
+describe("preço do kit", () => {
+  // peça R$ 4,00 (só filamento), pedido R$ 2,00 (embalagem); comissão 14% + 6% + R$ 4 fixa; sem imposto; margem 20%
+  const r = calculateCost(input({ filaments: [{ grams: 40, costPerGram: 0.1 }], printer: null, packagingCost: 2 }));
+  const shopee: ChannelFees = { commissionPct: 14, extraPct: 6, fixedFee: 4 };
+
+  it("custo do kit = custo da peça × n + custos do pedido", () => {
+    expect(r.piece.total).toBeCloseTo(4, 10);
+    expect(kitCost(r, 1)).toBeCloseTo(6, 10);
+    expect(kitCost(r, 3)).toBeCloseTo(14, 10);
+    expect(kitCost(r, 5)).toBeCloseTo(22, 10);
+  });
+
+  it("taxa fixa e embalagem entram UMA vez por kit", () => {
+    // (4 × 5 + 2 + 4) ÷ (1 − 0,20 − 0,20) = 26 ÷ 0,6 = 43,33 → 43,90
+    const kit5 = suggestKitPrice(r, 5, shopee, 0, 20, "cents_90");
+    if (!kit5.ok) throw new Error("sem preço");
+    expect(kit5.rawPrice).toBeCloseTo(43.3333333, 6);
+    expect(kit5.price).toBe(43.9);
+    // taxas: 43,90 × 20% + 4 (uma vez) = 12,78
+    expect(kit5.channelFees).toBeCloseTo(12.78, 10);
+    expect(kit5.unitCost).toBeCloseTo(22, 10);
+    expect(kit5.profit).toBeCloseTo(43.9 - 12.78 - 22, 10);
+    // kit de 1: (6 + 4) ÷ 0,6 = 16,67 → 16,90; 5 kits de 1 pagariam 5 taxas fixas e 5 embalagens
+    const kit1 = suggestKitPrice(r, 1, shopee, 0, 20, "cents_90");
+    if (!kit1.ok) throw new Error("sem preço");
+    expect(kit1.price).toBe(16.9);
+    expect(kit5.price).toBeLessThan(kit1.price * 5);
+  });
+
+  it("kit de 1 é a conta de sempre (suggestPrice sobre o custo da unidade)", () => {
+    expect(suggestKitPrice(r, 1, shopee, 6, 25, "cents_90")).toEqual(suggestPrice(r.unit.total, shopee, 6, 25, "cents_90"));
+  });
+
+  it("desconto por peça em relação ao kit de 1", () => {
+    expect(perPieceDiscountPct(43.9, 5, 16.9)).toBeCloseTo((1 - 8.78 / 16.9) * 100, 10);
+    expect(perPieceDiscountPct(20, 1, 20)).toBeCloseTo(0, 10);
+    expect(perPieceDiscountPct(10, 2, 0)).toBeNull();
+  });
+
+  it("taxa do pedido de plataforma: fixa por unidade vendida (2 × Kit 5 = 2 taxas)", () => {
+    // 2 kits de 43,90 = 87,80 × 20% = 17,56 + 2 × 4
+    expect(orderChannelFees(87.8, 2, shopee)).toBeCloseTo(25.56, 10);
+    expect(orderChannelFees(43.9, 1, shopee)).toBeCloseTo(12.78, 10);
+    expect(orderChannelFees(10, 0, shopee)).toBeCloseTo(6, 10);
   });
 });

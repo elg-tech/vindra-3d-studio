@@ -1,6 +1,6 @@
 import "server-only";
 import { type CatalogSheet, loadSheets } from "@/lib/catalog";
-import { type PricingContext, channelFees, creditChannelFees, evaluateSheet } from "@/lib/cost-sheet";
+import { type PricingContext, channelFees, creditChannelFees, sheetKitCost } from "@/lib/cost-sheet";
 import { type ChannelFees, suggestPrice } from "@/lib/pricing";
 import { loadPricingContext } from "@/lib/pricing-context";
 import type { createClient } from "@/lib/supabase/server";
@@ -15,8 +15,10 @@ export type QuoteCatalogOption = {
   label: string;
   /** Preço padrão: o da variação na venda direta; senão o sugerido para esse canal. */
   price: number | null;
-  /** Custo por peça hoje (privado). */
+  /** Custo de uma unidade hoje (o kit inteiro, numa variação de kit; privado). */
   cost: number | null;
+  /** Peças por unidade (variação "Kit 5" = 5; ficha = 1). */
+  piecesPerKit: number;
 };
 
 export type QuoteCatalog = {
@@ -30,10 +32,8 @@ export type QuoteCatalog = {
   ctx: PricingContext;
 };
 
-function costOf(sheet: CatalogSheet | undefined, ctx: PricingContext): number | null {
-  if (!sheet) return null;
-  const evaluation = evaluateSheet(sheet.sheet, ctx);
-  return evaluation.ok ? evaluation.result.unit.total : null;
+function costOf(sheet: CatalogSheet | undefined, ctx: PricingContext, piecesPerKit = 1): number | null {
+  return sheetKitCost(sheet?.sheet, ctx, piecesPerKit);
 }
 
 export async function loadQuoteCatalog(supabase: Supabase): Promise<QuoteCatalog> {
@@ -42,7 +42,7 @@ export async function loadQuoteCatalog(supabase: Supabase): Promise<QuoteCatalog
     loadSheets(supabase),
     supabase
       .from("products")
-      .select("name, product_variants(id, name, active, sort_order, cost_sheet_id, variant_channel_prices(channel_id, price))")
+      .select("name, product_variants(id, name, active, sort_order, cost_sheet_id, pieces_per_kit, variant_channel_prices(channel_id, price))")
       .eq("active", true)
       .order("name"),
   ]);
@@ -63,7 +63,7 @@ export async function loadQuoteCatalog(supabase: Supabase): Promise<QuoteCatalog
       .filter((v) => v.active)
       .sort((a, b) => a.sort_order - b.sort_order)
       .map((v): QuoteCatalogOption => {
-        const cost = costOf(v.cost_sheet_id ? sheetById.get(v.cost_sheet_id) : undefined, ctx);
+        const cost = costOf(v.cost_sheet_id ? sheetById.get(v.cost_sheet_id) : undefined, ctx, v.pieces_per_kit);
         const directPrice = direct ? v.variant_channel_prices.find((x) => x.channel_id === direct.id)?.price : undefined;
         return {
           kind: "variant",
@@ -71,13 +71,14 @@ export async function loadQuoteCatalog(supabase: Supabase): Promise<QuoteCatalog
           label: p.product_variants.length > 1 || v.name !== "Padrão" ? `${p.name} · ${v.name}` : p.name,
           price: directPrice ?? suggested(cost),
           cost,
+          piecesPerKit: v.pieces_per_kit,
         };
       }),
   );
 
   const sheetOptions = sheets.map((s): QuoteCatalogOption => {
     const cost = costOf(s, ctx);
-    return { kind: "sheet", id: s.id, label: s.name, price: suggested(cost), cost };
+    return { kind: "sheet", id: s.id, label: s.name, price: suggested(cost), cost, piecesPerKit: 1 };
   });
 
   return { options: [...variantOptions, ...sheetOptions], directFees, directCreditFees, taxPct: tax_pct, ctx };

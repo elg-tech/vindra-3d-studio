@@ -74,25 +74,36 @@ export async function deleteProduct(id: string): Promise<ActionResult> {
   return { ok: true, message: "Produto excluído." };
 }
 
-/** Calculadora → "Salvar como produto": cria o produto ou acrescenta uma variação. */
+/** Calculadora → "Salvar como produto": cria o produto ou acrescenta uma variação (ou uma por kit). */
 export async function saveSheetAsProduct(input: unknown): Promise<ActionResult<{ id: string }>> {
   const parsed = parseInput(sheetToProductSchema, input);
   if (!parsed.ok) return parsed;
   const v = parsed.data;
   const supabase = await createClient();
 
+  const kits = v.kits?.length ? v.kits : null;
+  const hasPrices = kits?.some((k) => k.prices.length > 0) ?? false;
   if (v.mode === "new") {
+    const variants = kits
+      ? kits.map((k) => ({
+          name: k.name,
+          sku: null,
+          costSheetId: v.costSheetId,
+          piecesPerKit: k.piecesPerKit,
+          active: true,
+          prices: k.prices,
+        }))
+      : [{ name: v.variantName, sku: null, costSheetId: v.costSheetId, piecesPerKit: 1, active: true, prices: [] }];
     const { data, error } = await supabase.rpc("save_product", {
-      p_product: {
-        name: v.productName,
-        sku: v.productSku,
-        active: true,
-        variants: [{ name: v.variantName, sku: null, costSheetId: v.costSheetId, active: true, prices: [] }],
-      },
+      p_product: { name: v.productName, sku: v.productSku, active: true, variants },
     });
     if (error) return { ok: false, error: productError(error) };
     revalidateCatalog(data);
-    return { ok: true, message: "Produto criado. Defina os preços por canal.", data: { id: data } };
+    return {
+      ok: true,
+      message: hasPrices ? "Produto criado com os preços digitados." : "Produto criado. Defina os preços por canal.",
+      data: { id: data },
+    };
   }
 
   const { data: last } = await supabase
@@ -102,14 +113,33 @@ export async function saveSheetAsProduct(input: unknown): Promise<ActionResult<{
     .order("sort_order", { ascending: false })
     .limit(1)
     .maybeSingle();
-  const { error } = await supabase.from("product_variants").insert({
-    product_id: v.productId,
-    name: v.variantName,
-    sku: v.variantSku,
-    cost_sheet_id: v.costSheetId,
-    sort_order: (last?.sort_order ?? -1) + 1,
-  });
+  const start = (last?.sort_order ?? -1) + 1;
+  const rows = kits
+    ? kits.map((k, i) => ({
+        product_id: v.productId,
+        name: k.name,
+        sku: null,
+        cost_sheet_id: v.costSheetId,
+        pieces_per_kit: k.piecesPerKit,
+        sort_order: start + i,
+      }))
+    : [{ product_id: v.productId, name: v.variantName, sku: v.variantSku, cost_sheet_id: v.costSheetId, sort_order: start }];
+  const { data: inserted, error } = await supabase.from("product_variants").insert(rows).select("id, sort_order");
   if (error) return { ok: false, error: productError(error) };
+  if (kits && hasPrices) {
+    const bySort = new Map((inserted ?? []).map((r) => [r.sort_order, r.id]));
+    const prices = kits.flatMap((k, i) =>
+      k.prices.map((p) => ({ variant_id: bySort.get(start + i) as string, channel_id: p.channelId, price: p.price })),
+    );
+    const { error: priceError } = await supabase.from("variant_channel_prices").insert(prices);
+    if (priceError) return { ok: false, error: productError(priceError) };
+  }
   revalidateCatalog(v.productId);
-  return { ok: true, message: "Variação adicionada. Defina os preços por canal.", data: { id: v.productId } };
+  return {
+    ok: true,
+    message: kits
+      ? `${kits.length} variações adicionadas.${hasPrices ? "" : " Defina os preços por canal."}`
+      : "Variação adicionada. Defina os preços por canal.",
+    data: { id: v.productId },
+  };
 }

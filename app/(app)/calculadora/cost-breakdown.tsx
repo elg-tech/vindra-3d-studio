@@ -23,7 +23,11 @@ function slices(unit: CostParts) {
 const pct = (part: number, total: number) =>
   total > 0 ? `${((part / total) * 100).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}%` : "—";
 
-export function CostBreakdown({ unit }: { unit: CostParts }) {
+/**
+ * Composição do custo por peça. Na calculadora mostra só a produção (os custos do pedido ficam na venda);
+ * no item avulso, a unidade com embalagem.
+ */
+export function CostBreakdown({ unit, suppliesLabel = "Insumos e embalagem" }: { unit: CostParts; suppliesLabel?: string }) {
   const data = slices(unit);
   const visible = data.filter((d) => d.value > 0);
 
@@ -34,7 +38,7 @@ export function CostBreakdown({ unit }: { unit: CostParts }) {
     { label: "Depreciação", value: unit.depreciation, indent: true },
     { label: "Manutenção", value: unit.maintenance, indent: true },
     { label: "Mão de obra", value: unit.labor, color: data[2].color },
-    { label: "Insumos e embalagem", value: unit.supplies, color: data[3].color },
+    { label: suppliesLabel, value: unit.supplies, color: data[3].color },
     { label: "Margem de falha", value: unit.failure, color: data[4].color },
   ];
 

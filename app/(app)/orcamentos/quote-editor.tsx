@@ -110,6 +110,8 @@ export function QuoteEditor({
 
   // resumo ao vivo com o custo atual de cada ficha e do item avulso (o salvo é recalculado no servidor)
   const costById = new Map(catalog.map((o) => [o.id, o.cost]));
+  // variação "Kit 5": o custo já é do kit; a dica mostra quantas peças vão em cada unidade
+  const kitById = new Map(catalog.filter((o) => o.kind === "variant").map((o) => [o.id, o.piecesPerKit]));
   const avulsoCost = (i: NonNullable<QuoteInput["items"]>[number]) => {
     const evaluation = i.cost ? evaluateItemCost(i.cost as ItemCost, num(i.quantity), ctx) : null;
     return evaluation?.ok ? evaluation.unitCost : null;
@@ -283,7 +285,14 @@ export function QuoteEditor({
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <ItemCostSummary unitCost={line.unitCost} quantity={line.quantity} unitPrice={line.unitPrice} />
+                    <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <ItemCostSummary unitCost={line.unitCost} quantity={line.quantity} unitPrice={line.unitPrice} />
+                      {(kitById.get(values.items?.[i]?.variantId ?? "") ?? 1) > 1 && (
+                        <span className="text-xs text-muted-foreground tabular-nums">
+                          kit de {kitById.get(values.items?.[i]?.variantId ?? "")} peças por unidade
+                        </span>
+                      )}
+                    </span>
                     {!values.items?.[i]?.variantId && !values.items?.[i]?.costSheetId && !locked && (
                       <ItemCostDialog
                         ctx={ctx}

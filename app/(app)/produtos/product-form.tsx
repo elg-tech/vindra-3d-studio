@@ -49,6 +49,7 @@ export type ProductFormProduct = {
     sku: string | null;
     image_path: string | null;
     cost_sheet_id: string | null;
+    pieces_per_kit: number;
     active: boolean;
     prices: { channel_id: string; price: number }[];
   }[];
@@ -78,6 +79,7 @@ export function ProductForm({
     sku: "",
     imagePath: "",
     costSheetId: "",
+    piecesPerKit: "1",
     active: true,
     prices: emptyPrices(),
   });
@@ -106,6 +108,7 @@ export function ProductForm({
             sku: v.sku ?? "",
             imagePath: v.image_path ?? "",
             costSheetId: v.cost_sheet_id ?? "",
+            piecesPerKit: String(v.pieces_per_kit),
             active: v.active,
             // um campo por canal ativo, na ordem dos canais
             prices: ctx.channels.map((c) => ({
@@ -291,7 +294,10 @@ function VariantCard({
   // lucro ao vivo: mesma conta da lista de produtos (lib/product-pricing.ts)
   const sheet = sheets.find((s) => s.id === values.costSheetId)?.sheet ?? null;
   const prices = Object.fromEntries((values.prices ?? []).map((p) => [p.channelId, parseDecimal(p.price ?? "")]));
-  const pricing = priceVariant(sheet, prices, ctx);
+  // "Kit 5": custo das 5 peças + embalagem e custos do pedido uma vez; preço e taxa fixa por kit
+  const kitN = parseDecimal(values.piecesPerKit ?? "");
+  const piecesPerKit = kitN !== null && Number.isInteger(kitN) && kitN >= 1 ? kitN : 1;
+  const pricing = priceVariant(sheet, prices, ctx, piecesPerKit);
 
   return (
     <Card className={cn(!values.active && "opacity-70")}>
@@ -315,14 +321,22 @@ function VariantCard({
           userId={userId}
           onChange={(path) => setValue(`variants.${i}.imagePath`, path, { shouldDirty: true })}
         />
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_7rem]">
           <TextField
             label="Nome da variação"
             registration={register(`variants.${i}.name`)}
             error={e?.name}
-            placeholder="ex.: Xbox, PS5, Tamanho M"
+            placeholder="ex.: Xbox, PS5, Kit 5"
           />
           <TextField label="SKU" registration={register(`variants.${i}.sku`)} error={e?.sku} autoCapitalize="characters" />
+          <TextField
+            label="Peças por kit"
+            registration={register(`variants.${i}.piecesPerKit`)}
+            error={e?.piecesPerKit}
+            numeric
+            inputMode="numeric"
+            hint="Quantas vão no pacote."
+          />
         </div>
 
         <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
@@ -332,7 +346,11 @@ function VariantCard({
             className="min-w-0"
             hint={
               pricing.unitCost !== null ? (
-                <span className="tabular-nums">Custo por peça hoje: {formatCurrency(pricing.unitCost)}</span>
+                <span className="tabular-nums">
+                  {piecesPerKit > 1
+                    ? `Custo do kit (${piecesPerKit} peças) hoje: ${formatCurrency(pricing.unitCost)}`
+                    : `Custo por peça hoje: ${formatCurrency(pricing.unitCost)}`}
+                </span>
               ) : undefined
             }
           >

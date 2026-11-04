@@ -73,6 +73,7 @@ export type Database = {
       }
       cost_sheet_supplies: {
         Row: {
+          per_order: boolean
           cost_sheet_id: string
           created_at: string
           id: string
@@ -84,6 +85,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          per_order?: boolean
           cost_sheet_id: string
           created_at?: string
           id?: string
@@ -95,6 +97,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          per_order?: boolean
           cost_sheet_id?: string
           created_at?: string
           id?: string
@@ -124,6 +127,8 @@ export type Database = {
       }
       cost_sheets: {
         Row: {
+          kit_sizes: number[]
+          pack_minutes: number
           calculated_at: string | null
           created_at: string
           id: string
@@ -143,6 +148,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          kit_sizes?: number[]
+          pack_minutes?: number
           calculated_at?: string | null
           created_at?: string
           id?: string
@@ -162,6 +169,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          kit_sizes?: number[]
+          pack_minutes?: number
           calculated_at?: string | null
           created_at?: string
           id?: string
@@ -417,6 +426,7 @@ export type Database = {
       }
       order_items: {
         Row: {
+          pieces_per_kit: number
           cost_input: Json | null
           cost_sheet_id: string | null
           cost_source: string | null
@@ -434,6 +444,7 @@ export type Database = {
           variant_id: string | null
         }
         Insert: {
+          pieces_per_kit?: number
           cost_input?: Json | null
           cost_sheet_id?: string | null
           cost_source?: string | null
@@ -451,6 +462,7 @@ export type Database = {
           variant_id?: string | null
         }
         Update: {
+          pieces_per_kit?: number
           cost_input?: Json | null
           cost_sheet_id?: string | null
           cost_source?: string | null
@@ -742,6 +754,7 @@ export type Database = {
       }
       product_variants: {
         Row: {
+          pieces_per_kit: number
           active: boolean
           cost_sheet_id: string | null
           created_at: string
@@ -755,6 +768,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          pieces_per_kit?: number
           active?: boolean
           cost_sheet_id?: string | null
           created_at?: string
@@ -768,6 +782,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          pieces_per_kit?: number
           active?: boolean
           cost_sheet_id?: string | null
           created_at?: string
@@ -844,6 +859,7 @@ export type Database = {
       }
       quote_items: {
         Row: {
+          pieces_per_kit: number
           cost_input: Json | null
           cost_sheet_id: string | null
           cost_source: string | null
@@ -862,6 +878,7 @@ export type Database = {
           variant_id: string | null
         }
         Insert: {
+          pieces_per_kit?: number
           cost_input?: Json | null
           cost_sheet_id?: string | null
           cost_source?: string | null
@@ -880,6 +897,7 @@ export type Database = {
           variant_id?: string | null
         }
         Update: {
+          pieces_per_kit?: number
           cost_input?: Json | null
           cost_sheet_id?: string | null
           cost_source?: string | null

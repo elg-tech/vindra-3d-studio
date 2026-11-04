@@ -13,7 +13,7 @@ import type { PricingContext } from "@/lib/cost-sheet";
 import { formatCurrency } from "@/lib/format";
 import { type ItemCost, evaluateItemCost } from "@/lib/item-cost";
 import { parseDecimal } from "@/lib/numbers";
-import { profitAtPrice } from "@/lib/pricing";
+import { orderChannelFees } from "@/lib/pricing";
 import { type ItemCostSchemaInput, type ManualOrderInput, manualOrderSchema } from "@/lib/validation/schemas";
 import { ItemCostDialog, ItemCostSummary } from "../../calculadora/item-cost-dialog";
 import type { SupplyOption } from "../../calculadora/sheet-fields";
@@ -71,8 +71,10 @@ export function ManualOrderForm({
   });
   const missingCost = unitCosts.filter((c) => c === null).length;
   const total = subtotal + num(values.shippingCost);
+  // taxa fixa por unidade vendida (2 × "Kit 5" = 2 taxas fixas)
+  const units = (values.items ?? []).reduce((s, i) => s + num(i.quantity), 0);
   const fees = channel
-    ? profitAtPrice(total, 0, { commissionPct: channel.commissionPct, extraPct: channel.extraPct, fixedFee: channel.fixedFee }, 0).channelFees
+    ? orderChannelFees(total, units, { commissionPct: channel.commissionPct, extraPct: channel.extraPct, fixedFee: channel.fixedFee })
     : 0;
 
   function add(value: string) {

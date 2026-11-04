@@ -22,16 +22,27 @@ import { saveSheetAsProduct } from "../produtos/actions";
 
 export type ProductOption = { id: string; name: string };
 
-/** "Salvar como produto": a ficha salva vira um produto novo ou uma variação de um existente. */
+/** Um kit da calculadora, com os preços manuais digitados (viram os preços da variação). */
+export type KitDraft = { name: string; piecesPerKit: number; prices: { channelId: string; price: number }[] };
+
+/**
+ * "Salvar como produto": a ficha salva vira um produto novo ou uma variação de um existente.
+ * Com kits na calculadora, pode criar uma variação por kit (mesma ficha, peças por kit e preços digitados).
+ */
 export function SaveAsProduct({
   sheetId,
   sheetName,
   products,
+  kits = [],
 }: {
   sheetId: string;
   sheetName: string;
   products: ProductOption[];
+  kits?: KitDraft[];
 }) {
+  const hasKits = kits.some((k) => k.piecesPerKit > 1);
+  const [perKit, setPerKit] = useState(true);
+  const useKits = hasKits && perKit;
   const router = useRouter();
   const id = useId();
   const [open, setOpen] = useState(false);
@@ -59,8 +70,15 @@ export function SaveAsProduct({
     startTransition(async () => {
       const result = await saveSheetAsProduct(
         mode === "new"
-          ? { mode, costSheetId: sheetId, productName, productSku, variantName }
-          : { mode, costSheetId: sheetId, productId, variantName: existingVariantName, variantSku },
+          ? { mode, costSheetId: sheetId, productName, productSku, variantName, kits: useKits ? kits : undefined }
+          : {
+              mode,
+              costSheetId: sheetId,
+              productId,
+              variantName: existingVariantName,
+              variantSku,
+              kits: useKits ? kits : undefined,
+            },
       );
       if (!result.ok) {
         toast.error(Object.values(result.fieldErrors ?? {})[0] ?? result.error);
@@ -84,9 +102,27 @@ export function SaveAsProduct({
           <DialogHeader>
             <DialogTitle>Salvar como produto</DialogTitle>
             <DialogDescription>
-              Usa a versão salva da ficha. Os preços por canal você define na página do produto.
+              Usa a versão salva da ficha. Os preços por canal você define na página do produto
+              {hasKits && " (ou já vão os preços manuais digitados em cada kit)"}.
             </DialogDescription>
           </DialogHeader>
+
+          {hasKits && (
+            <label className="flex min-h-11 cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm">
+              <input
+                type="checkbox"
+                className="mt-0.5 size-4 shrink-0 accent-primary"
+                checked={perKit}
+                onChange={(e) => setPerKit(e.target.checked)}
+              />
+              <span>
+                Uma variação por kit: {kits.map((k) => k.name).join(", ")}
+                <span className="block text-xs text-muted-foreground">
+                  Mesma ficha, com as peças por kit e os preços manuais digitados.
+                </span>
+              </span>
+            </label>
+          )}
 
           <Tabs value={mode} onValueChange={(v) => setMode(v as "new" | "existing")}>
             <TabsList className="w-full">
@@ -104,10 +140,12 @@ export function SaveAsProduct({
                 <Label htmlFor={`${id}-psku`}>SKU (opcional)</Label>
                 <Input id={`${id}-psku`} value={productSku} onChange={(e) => setProductSku(e.target.value)} />
               </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor={`${id}-vname`}>Nome da primeira variação</Label>
-                <Input id={`${id}-vname`} value={variantName} onChange={(e) => setVariantName(e.target.value)} required />
-              </div>
+              {!useKits && (
+                <div className="grid gap-1.5">
+                  <Label htmlFor={`${id}-vname`}>Nome da primeira variação</Label>
+                  <Input id={`${id}-vname`} value={variantName} onChange={(e) => setVariantName(e.target.value)} required />
+                </div>
+              )}
             </TabsContent>
             <TabsContent value="existing" className="grid gap-4 pt-3">
               <div className="grid gap-1.5">
@@ -125,6 +163,8 @@ export function SaveAsProduct({
                   </SelectContent>
                 </Select>
               </div>
+              {!useKits && (
+              <>
               <div className="grid gap-1.5">
                 <Label htmlFor={`${id}-ename`}>Nome da variação</Label>
                 <Input
@@ -139,13 +179,15 @@ export function SaveAsProduct({
                 <Label htmlFor={`${id}-esku`}>SKU da variação (opcional)</Label>
                 <Input id={`${id}-esku`} value={variantSku} onChange={(e) => setVariantSku(e.target.value)} />
               </div>
+              </>
+              )}
             </TabsContent>
           </Tabs>
 
           <DialogFooter>
             <Button type="submit" disabled={isPending || (mode === "existing" && !productId)}>
               {isPending && <Loader2 className="animate-spin" aria-hidden />}
-              {mode === "new" ? "Criar produto" : "Adicionar variação"}
+              {mode === "new" ? "Criar produto" : useKits ? "Adicionar variações" : "Adicionar variação"}
             </Button>
           </DialogFooter>
         </form>
