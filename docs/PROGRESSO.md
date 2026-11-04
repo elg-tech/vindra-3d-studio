@@ -7,7 +7,8 @@
 > **Quando o prompt e este arquivo divergirem, vale este arquivo.** O prompt é o original;
 > as mudanças combinadas depois estão em "Onde o prompt ficou desatualizado" e em "Decisões".
 
-Última atualização: 28/10/2026 (Fase 10 concluída: **projeto concluído**, em uso real).
+Última atualização: 03/11/2026 (calculadora produção x venda e kits no catálogo, em produção). Fase 10 concluída em
+28/10/2026: projeto em uso real.
 
 ## Fases
 
@@ -370,7 +371,7 @@ Sem migração (decisão do Enzo: opção "a").
 - **Testes:** `tests/plate-import.test.ts` com a fixture `tests/fixtures/tres-mesas.gcode.3mf` (3 mesas fatiadas + 1 não
   fatiada, gerada por `tests/fixtures/tres-mesas/gerar.mjs`); Playwright 1280 e 390 (42/42, fora do repo).
 
-### Calculadora: produção x venda e kits (branch `calc-producao-venda`, em andamento)
+### Calculadora: produção x venda e kits (commits `762617d` e `88b3bfa`, merge `382eb79` em 03/11/2026)
 Problema: a calculadora misturava produção e venda ("Peças por mesa" x "Quantidade"), o resultado era sempre por peça e,
 ao montar kit, a taxa fixa do canal e a embalagem eram contadas por peça. Plano e fórmula aprovados pelo Enzo em 03/11/2026.
 - **Migração `20261104120000_kits_producao_venda` (aditiva):** `cost_sheets.pack_minutes` (separar/embalar/enviar, por
@@ -412,8 +413,9 @@ ao montar kit, a taxa fixa do canal e a embalagem eram contadas por peça. Plano
 
 ## Pendências
 
-- [ ] **Calculadora produção x venda:** Enzo confere o tubarão no preview com a configuração real (kit 1, 3 e 5 na
-  Shopee e no TikTok; preços manuais R$ 21,90 / 34,90 / 44,90) e dá o ok para o merge.
+- [x] **Calculadora produção x venda:** Enzo conferiu o tubarão no preview com a configuração real (03/11/2026): kits
+  1/3/5, taxa fixa 1× por kit, preço por peça caindo, preços manuais e lucro ok; ficha antiga com o mesmo custo; pedido
+  de 1 × Kit 5 prevendo a baixa de 5 peças (pedido de teste excluído). Merge na `main` (`382eb79`).
 
 - [x] **Importação de várias mesas:** Enzo conferiu no preview com um .3mf real de 3 mesas (03/11/2026): tempo e gramas
   de cada mesa batem com o Bambu Studio; soma, seleção parcial, troca de cor e "Editar custo" reabrindo as mesas ok.
